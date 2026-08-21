@@ -1,6 +1,7 @@
 """Hash de contrasenas, emision y validacion de JWT, y carga de usuarios."""
 
 import json
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -10,9 +11,10 @@ from jose import JWTError, jwt
 
 from app.config import Settings
 
-# Hash descartable contra el que se compara cuando el usuario no existe, para que
-# el login tarde lo mismo exista o no y no se pueda enumerar usuarios por tiempo.
-DUMMY_HASH = "$2b$12$C6UzMDM.H6dfI/f/IKcEe.ORB.oJ3vJ0VbLGWX3n8LvJmVWQ2Zk0m"
+# Hash contra el que se compara cuando el usuario no existe, para que el login
+# tarde lo mismo exista o no y no se pueda enumerar usuarios midiendo tiempos.
+# Se genera al importar sobre bytes aleatorios: nadie conoce su contrasena.
+DUMMY_HASH = bcrypt.hashpw(secrets.token_bytes(16), bcrypt.gensalt()).decode()
 
 
 @dataclass(frozen=True)
