@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Permisos minimos por defecto. Cada job pide solo lo que necesita.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint y analisis estatico
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check app tests scripts
+
+      - name: Formato
+        run: ruff format --check app tests scripts
+
+      - name: Bandit
+        run: bandit -q -r app -c pyproject.toml
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Pytest con cobertura
+        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=70
+
+  dependencies:
+    name: Vulnerabilidades en dependencias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar pip-audit
+        run: pip install pip-audit==2.7.3
+
+      # Informa pero no bloquea: primero se acuerda la politica de severidad.
+      - name: Auditar dependencias
+        run: pip-audit --progress-spinner off || true
+
+  image:
+    name: Build y escaneo de imagen
+    runs-on: ubuntu-latest
+    needs: [quality, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint del Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: error
+
+      - name: Construir imagen
+        run: docker build -t owasp-rag-assistant:${{ github.sha }} .
+
+      - name: Verificar que no corre como root
+        run: |
+          user=$(docker run --rm --entrypoint id owasp-rag-assistant:${{ github.sha }} -u)
+          echo "UID en runtime: $user"
+          test "$user" != "0"
+
+      - name: Escanear imagen con Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: owasp-rag-assistant:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Generar SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: owasp-rag-assistant:${{ github.sha }}
+          format: cyclonedx-json
+          artifact-name: sbom.cyclonedx.json
