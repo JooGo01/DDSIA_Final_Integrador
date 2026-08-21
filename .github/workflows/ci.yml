@@ -84,7 +84,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Lint del Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.4.0
         with:
           dockerfile: Dockerfile
           failure-threshold: error
@@ -99,7 +99,7 @@ jobs:
           test "$user" != "0"
 
       - name: Escanear imagen con Trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: owasp-rag-assistant:${{ github.sha }}
           format: table
@@ -108,7 +108,7 @@ jobs:
           exit-code: "0"
 
       - name: Generar SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v0.24.0
         with:
           image: owasp-rag-assistant:${{ github.sha }}
           format: cyclonedx-json
