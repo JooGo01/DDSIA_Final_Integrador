@@ -1,7 +1,7 @@
 """Tests de autenticacion y autorizacion."""
 
+import jwt
 import pytest
-from jose import jwt
 
 from tests.conftest import ADMIN_PASSWORD, ANALYST_PASSWORD, auth_header, get_token
 
@@ -81,7 +81,7 @@ def test_admin_puede_ingestar(client):
 
 def test_el_token_incluye_solo_los_scopes_del_usuario(client):
     token = get_token(client, "analista", ANALYST_PASSWORD)
-    claims = jwt.get_unverified_claims(token)
+    claims = jwt.decode(token, options={"verify_signature": False}, audience="owasp-rag-api")
     assert claims["scopes"] == ["ask:read"]
     assert claims["iss"] == "owasp-rag-assistant"
     assert claims["aud"] == "owasp-rag-api"

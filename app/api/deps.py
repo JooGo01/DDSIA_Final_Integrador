@@ -11,7 +11,7 @@ from app.core.errors import AppError
 from app.core.logging import get_logger
 from app.core.metrics import rate_limit_hits
 from app.core.ratelimit import TokenBucketLimiter
-from app.core.security import JWTError, decode_access_token
+from app.core.security import PyJWTError, decode_access_token
 
 logger = get_logger("auth")
 
@@ -55,7 +55,7 @@ async def get_current_user(
     settings: Settings = request.app.state.settings
     try:
         claims = decode_access_token(token, settings)
-    except JWTError as exc:
+    except PyJWTError as exc:
         # El motivo va al log; al cliente solo le llega 401.
         logger.info("token_rejected", reason=type(exc).__name__)
         raise unauthorized from exc

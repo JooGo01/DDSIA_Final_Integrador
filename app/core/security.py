@@ -7,7 +7,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import bcrypt
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError
 
 from app.config import Settings
 
@@ -92,7 +93,10 @@ def create_access_token(user: User, settings: Settings) -> tuple[str, int]:
 
 
 def decode_access_token(token: str, settings: Settings) -> dict:
-    """Valida firma, algoritmo, emisor, audiencia y vencimiento. Lanza JWTError si algo falla."""
+    """Valida firma, algoritmo, emisor, audiencia y vencimiento.
+
+    Lanza PyJWTError si cualquiera de esas comprobaciones falla.
+    """
     return jwt.decode(
         token,
         settings.jwt_secret,
@@ -101,8 +105,8 @@ def decode_access_token(token: str, settings: Settings) -> dict:
         issuer=settings.jwt_issuer,
         audience=settings.jwt_audience,
         options={
-            "require_exp": True,
-            "require_iat": True,
+            "require": ["exp", "iat", "iss", "aud", "sub"],
+            "verify_exp": True,
             "verify_aud": True,
             "verify_iss": True,
             "verify_signature": True,
@@ -111,7 +115,7 @@ def decode_access_token(token: str, settings: Settings) -> dict:
 
 
 __all__ = [
-    "JWTError",
+    "PyJWTError",
     "User",
     "authenticate",
     "create_access_token",

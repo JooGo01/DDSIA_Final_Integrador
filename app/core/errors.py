@@ -73,7 +73,7 @@ def register_error_handlers(app: FastAPI) -> None:
         fields = sorted({".".join(str(p) for p in e["loc"][1:]) or "body" for e in exc.errors()})
         logger.info("validation_error", route=request.url.path, fields=fields)
         return build_problem_response(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
             "validation-error",
             "La solicitud no cumple el contrato",
             f"Campos invalidos o no permitidos: {', '.join(fields)}",
