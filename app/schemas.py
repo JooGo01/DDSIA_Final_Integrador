@@ -56,6 +56,8 @@ class IngestResponse(BaseModel):
     chunks: int
     collection: str
     duration_ms: int
+    # Archivos que quedaron fuera por contener instrucciones en lugar de contenido.
+    rejected: list[str] = []
 
 
 class HealthResponse(BaseModel):

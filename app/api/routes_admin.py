@@ -28,7 +28,7 @@ async def ingest(request: Request, payload: IngestRequest, user: RequireIngest) 
 
     logger.info("ingest_requested", user=user.username, reset=payload.reset)
     try:
-        documents, chunks, duration_ms = await ingest_corpus(
+        documents, chunks, duration_ms, rejected = await ingest_corpus(
             settings, store, client, reset=payload.reset
         )
     except OllamaError as exc:
@@ -45,4 +45,5 @@ async def ingest(request: Request, payload: IngestRequest, user: RequireIngest) 
         chunks=chunks,
         collection=settings.collection_name,
         duration_ms=duration_ms,
+        rejected=rejected,
     )

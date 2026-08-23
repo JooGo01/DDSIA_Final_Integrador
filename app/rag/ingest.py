@@ -5,6 +5,7 @@ from pathlib import Path
 
 from app.config import Settings
 from app.core.logging import get_logger
+from app.guardrails.corpus_guard import scan_chunks
 from app.rag.chunking import Chunk, build_chunks
 from app.rag.ollama_client import OllamaClient
 from app.rag.store import VectorStore
@@ -38,14 +39,17 @@ async def ingest_corpus(
     store: VectorStore,
     client: OllamaClient,
     reset: bool = False,
-) -> tuple[int, int, int]:
-    """Ingesta el corpus completo. Devuelve (documentos, chunks, duracion en ms)."""
+) -> tuple[int, int, int, list[str]]:
+    """Ingesta el corpus completo.
+
+    Devuelve (documentos, chunks, duracion en ms, archivos descartados).
+    """
     started = time.perf_counter()
 
     documents = collect_documents(settings.corpus_path)
     if not documents:
         logger.warning("empty_corpus", path=settings.corpus_path)
-        return 0, 0, int((time.perf_counter() - started) * 1000)
+        return 0, 0, int((time.perf_counter() - started) * 1000), []
 
     all_chunks: list[Chunk] = []
     for path, document_name, source in documents:
@@ -60,6 +64,21 @@ async def ingest_corpus(
         )
         all_chunks.extend(chunks)
         logger.info("document_chunked", file=path.name, source=source, chunks=len(chunks))
+
+    # Un documento de referencia describe; no da ordenes al lector. El que si lo hace
+    # queda afuera: es la unica capa que puede frenar una inyeccion indirecta, porque
+    # la validacion de salida compara contra el contexto y el veneno ES el contexto.
+    hallazgos = scan_chunks(all_chunks)
+    descartados = sorted({h.origin_file for h in hallazgos})
+    if descartados:
+        for h in hallazgos:
+            logger.warning(
+                "documento_con_instrucciones",
+                file=h.origin_file,
+                chunk=h.chunk_index,
+                excerpt=h.excerpt[:120],
+            )
+        all_chunks = [c for c in all_chunks if c.origin_file not in set(descartados)]
 
     # Se vectoriza todo antes de tocar el indice. Si Ollama falla a mitad de camino,
     # la excepcion sale de aca y el indice anterior queda intacto: reset() borraba
@@ -81,6 +100,7 @@ async def ingest_corpus(
         "ingest_completed",
         documents=len(documents),
         chunks=len(all_chunks),
+        rejected=descartados,
         duration_ms=duration_ms,
     )
-    return len(documents), len(all_chunks), duration_ms
+    return len(documents) - len(descartados), len(all_chunks), duration_ms, descartados
