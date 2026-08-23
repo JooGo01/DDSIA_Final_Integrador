@@ -73,7 +73,7 @@ El usuario intenta que el asistente ignore sus reglas o revele su configuracion.
 
 - **Controles**: filtro de patrones en la entrada; el prompt de sistema prohibe revelar instrucciones; la salida se descarta si repite el prompt de sistema.
 - **Evidencia**: `test_endpoint_rechaza_prompt_injection`, `test_detecta_intentos_de_inyeccion`.
-- **Riesgo residual**: el filtro de patrones no cubre todas las variantes y es evadible. Se acepta porque no es el control principal: el control real es que no hay herramientas ni datos privados que extraer.
+- **Riesgo residual medido**: se probaron ocho variantes de evasion (homoglifos cirilicos, separadores entre letras, base64, otro idioma, peticiones indirectas). Cinco evadieron el filtro de patrones y ninguna consiguio filtrar el prompt de sistema: tres las freno la validacion de salida o el propio filtro, y las demas se respondieron como preguntas legitimas. Se acepta porque el filtro no es el control principal: lo que contiene el riesgo es que el servicio sea de solo lectura y no exponga herramientas. Ver `evals/bypass_guardrails.py`.
 
 ### T-03 · Agotamiento de computo y cuota · Denial of Service · Alta
 
@@ -81,7 +81,9 @@ Un usuario valido satura el modelo con consultas o con preguntas muy largas.
 
 - **Controles**: token bucket por usuario; tope de caracteres en la pregunta; presupuesto diario de tokens por usuario; `num_predict` limita la salida; timeout sobre el modelo; limites de CPU, memoria y PIDs en el contenedor.
 - **Evidencia**: `test_superar_las_requests_por_minuto_devuelve_429`, `test_sin_presupuesto_de_tokens_se_rechaza_la_consulta`.
-- **Riesgo residual**: el estado del limitador vive en memoria del proceso. Con varias replicas el limite se multiplicaria por la cantidad de instancias. Se acepta para una unica instancia y se documenta como el primer cambio necesario para escalar.
+- **Riesgo residual**: el estado del limitador vive en memoria del proceso. Con varias replicas el limite se multiplicaria por la cantidad de instancias. Se acepta para una unica instancia y se documenta como el primer cambio necesario para escalar. La auditoria agrego dos cosas: purga de claves inactivas, porque el diccionario del limitador por IP crecia sin techo, y una carga previa del modelo al arrancar, porque la primera consulta tardaba 89 s contra un timeout de 90 y devolvia 503.
+
+- **Sobregiro aceptado**: `has_budget()` y `consume()` no son atomicos, asi que dos consultas concurrentes del mismo usuario pueden pasar el control antes de que ninguna descuente. El sobregiro esta acotado por el limite de peticiones: unas diez consultas de mas sobre una cuota de 50.000 tokens.
 
 ### T-04 · Robo o forja de tokens · Spoofing · Alta
 
@@ -104,6 +106,7 @@ Un stack trace o un log expone rutas internas, credenciales o el contenido de la
 
 - **Controles**: todos los errores salen en `application/problem+json` con un codigo estable y sin detalle interno; el detalle va al log; los logs redactan las claves sensibles y nunca escriben el prompt, el contexto, la pregunta ni la respuesta; las preguntas con datos personales se rechazan antes de llegar al modelo.
 - **Evidencia**: `test_si_el_modelo_falla_devuelve_503_sin_filtrar_detalle`, `test_endpoint_rechaza_pregunta_con_pii`, `test_respuesta_con_datos_personales_se_bloquea`.
+- **Corregido en la auditoria**: el `X-Request-ID` que propone el cliente se aceptaba sin validar y terminaba en cada linea de log, en la cabecera de respuesta y en el cuerpo JSON. Se comprobo con un valor de 1 KB. Ahora solo se acepta si cumple `[A-Za-z0-9._-]{1,64}`.
 
 ### T-07 · Falta de trazabilidad de una respuesta · Repudiation · Baja
 
@@ -111,6 +114,19 @@ No se puede reconstruir que respondio el sistema ante un reclamo.
 
 - **Controles**: cada peticion recibe un `request_id` que viaja en el log, en la respuesta y en la cabecera `X-Request-ID`; se registran usuario, corpus consultado, chunks recuperados, si la respuesta quedo fundamentada, tokens y latencia.
 - **Riesgo residual**: no se guarda el texto de la respuesta, asi que la reconstruccion es parcial. Es una decision deliberada: guardar el contenido convertiria los logs en un nuevo activo a proteger.
+
+### T-09 · Respuesta inventada presentada como fundamentada · Information Disclosure · Alta
+
+Una pregunta sobre seguridad de aplicaciones que no esta en el corpus recupera
+fragmentos parecidos igual, porque habla del mismo tema, y el modelo la contesta con
+lo que sabe de su preentrenamiento. La respuesta sale marcada como fundamentada y con
+citas.
+
+- **Como se detecto**: la evaluacion de fundamentacion, familia `trampa`. Cinco de cinco casos fallaron en la primera corrida. El mas claro respondio "A04: Missing Function Level Access Control" a una pregunta sobre la edicion 2017, que es falso.
+- **Por que no alcanzaba con subir umbrales**: las trampas puntuaron entre 0.61 y 0.78 en fundamentacion, dentro del rango de las respuestas correctas (0.61 a 0.79), y una pregunta legitima puntuo 0.49. Ningun corte las separa.
+- **Controles**: control de alcance deterministico antes de recuperar; el corpus tiene alcance fijo y una pregunta que nombra otro documento de OWASP, otra edicion o un CVE puntual se rechaza sin consultar al modelo.
+- **Evidencia**: `tests/test_scope_guard.py` y la familia `trampa` de `evals/eval_fundamentacion.py`, que paso de 0/5 a 5/5.
+- **Riesgo residual**: el control atrapa lo que la pregunta nombra. Una consulta que pida contenido ajeno sin nombrarlo sigue pasando. Cerrarlo pide verificacion de implicacion entre respuesta y contexto, que es otra pasada de inferencia.
 
 ### T-08 · Cadena de suministro de la imagen · Tampering · Media
 
@@ -131,6 +147,7 @@ Una dependencia o la imagen base introducen una vulnerabilidad.
 | T-06 | Fuga por errores y logs | I | Media | Mitigar |
 | T-07 | Falta de trazabilidad | R | Baja | Mitigar parcialmente |
 | T-08 | Cadena de suministro | T | Media | Mitigar y monitorear |
+| T-09 | Respuesta inventada dada por fundamentada | I | Alta | Mitigar, con residual documentado |
 
 ## 4. Lo hicimos bien: verificacion
 
@@ -139,8 +156,12 @@ el pipeline en cada push y cada pull request. Un control sin prueba queda como s
 no como control.
 
 ```bash
-pytest tests/test_auth.py tests/test_guardrails.py tests/test_ratelimit.py -v
+pytest tests/test_auth.py tests/test_guardrails.py tests/test_ratelimit.py tests/test_scope_guard.py -v
 ```
+
+Las amenazas que no se pueden verificar con un test unitario —evasion de guardrails y
+respuestas inventadas— se miden contra el servicio real con las suites de `evals/`.
+Los resultados de la ultima corrida estan en [security-audit.md](security-audit.md).
 
 ## Amenazas fuera de alcance, y por que
 

@@ -59,6 +59,25 @@ entero.
 sintetica puede quedar por debajo del umbral. Se prefiere ese falso positivo antes que
 publicar una respuesta inventada.
 
+## 3 bis. Control de alcance antes de recuperar
+
+**Decision.** Si la pregunta nombra otro proyecto de OWASP, otra edicion o un CVE
+puntual, se rechaza sin recuperar ni consultar al modelo.
+
+**Motivo.** Es la unica correccion que la medicion respaldaba. Las preguntas de
+seguridad que no estan en el corpus recuperaban fragmentos con buena similitud
+—hablan del mismo tema— y el modelo las contestaba de memoria marcandolas como
+fundamentadas. Los numeros: esas preguntas puntuaron entre 0.61 y 0.78 en
+fundamentacion, dentro del rango de las respuestas correctas, y una pregunta legitima
+puntuo 0.49. Ningun umbral las separa.
+
+Como el corpus tiene alcance fijo y conocido, la comprobacion se puede hacer por
+codigo, que es mas barato y mas predecible que pedirle al modelo que se autoevalue.
+
+**Se resigna.** Es una lista de artefactos conocidos, no una comprension del limite
+del corpus: atrapa lo que la pregunta nombra. Cerrarlo del todo pide verificacion de
+implicacion entre respuesta y contexto, que es otro modelo y otra pasada.
+
 ## 4. Chroma embebido en lugar de un servicio aparte
 
 **Decision.** Vector store embebido, persistido en un volumen.

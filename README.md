@@ -105,7 +105,9 @@ app/
 
 Las decisiones y lo que se resigna con cada una estan en
 [docs/architecture.md](docs/architecture.md). El modelo de amenazas STRIDE, en
-[docs/threat-model.md](docs/threat-model.md).
+[docs/threat-model.md](docs/threat-model.md). La auditoria de seguridad y la
+evaluacion de cuanto inventa el asistente, en
+[docs/security-audit.md](docs/security-audit.md).
 
 ## Controles de seguridad
 
@@ -115,6 +117,7 @@ Las decisiones y lo que se resigna con cada una estan en
 | Autorizacion por scope en cada endpoint | `app/api/deps.py` |
 | Validacion estricta de entrada, con rechazo de campos no declarados | `app/schemas.py` |
 | Filtro de prompt injection y de datos personales en la pregunta | `app/guardrails/input_guard.py` |
+| Control de alcance: rechaza preguntas sobre documentos no indexados | `app/guardrails/scope_guard.py` |
 | Validacion de la respuesta: fundamentacion, fuga de prompt y datos personales | `app/guardrails/output_guard.py` |
 | Limite de peticiones por usuario y de intentos de login por IP | `app/core/ratelimit.py` |
 | Presupuesto diario de tokens por usuario | `app/core/ratelimit.py` |
@@ -159,6 +162,22 @@ Para correrlos sin instalar Python 3.12 localmente:
 docker run --rm -v "$PWD:/src" -w /src python:3.12-slim \
   bash -c "pip install -q -e '.[dev]' && pytest"
 ```
+
+## Evaluaciones contra el servicio real
+
+Los tests unitarios corren sin modelo. Para medir lo que solo se ve en ejecucion hay
+tres suites en [`evals/`](evals/): 52 controles de pentest, 8 intentos de evasion de
+guardrails y 16 casos de fundamentacion.
+
+```bash
+export EVAL_PASSWORD=... EVAL_ADMIN_PASSWORD=...
+python evals/pentest.py
+python evals/bypass_guardrails.py
+python evals/eval_fundamentacion.py
+```
+
+Resultados de la ultima corrida y su analisis en
+[docs/security-audit.md](docs/security-audit.md).
 
 ## Pipeline
 
