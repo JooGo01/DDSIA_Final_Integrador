@@ -42,9 +42,6 @@ async def ingest_corpus(
     """Ingesta el corpus completo. Devuelve (documentos, chunks, duracion en ms)."""
     started = time.perf_counter()
 
-    if reset:
-        store.clear()
-
     documents = collect_documents(settings.corpus_path)
     if not documents:
         logger.warning("empty_corpus", path=settings.corpus_path)
@@ -64,11 +61,20 @@ async def ingest_corpus(
         all_chunks.extend(chunks)
         logger.info("document_chunked", file=path.name, source=source, chunks=len(chunks))
 
-    # Se vectoriza por lotes para no mandar un unico request enorme a Ollama.
+    # Se vectoriza todo antes de tocar el indice. Si Ollama falla a mitad de camino,
+    # la excepcion sale de aca y el indice anterior queda intacto: reset() borraba
+    # primero y una falla dejaba el servicio sin nada que responder.
+    vectors: list[list[float]] = []
     for start in range(0, len(all_chunks), EMBED_BATCH_SIZE):
         batch = all_chunks[start : start + EMBED_BATCH_SIZE]
-        embeddings = await client.embed([chunk.text for chunk in batch])
-        store.add(batch, embeddings)
+        vectors.extend(await client.embed([chunk.text for chunk in batch]))
+
+    if reset:
+        store.clear()
+    for start in range(0, len(all_chunks), EMBED_BATCH_SIZE):
+        store.add(
+            all_chunks[start : start + EMBED_BATCH_SIZE], vectors[start : start + EMBED_BATCH_SIZE]
+        )
 
     duration_ms = int((time.perf_counter() - started) * 1000)
     logger.info(
