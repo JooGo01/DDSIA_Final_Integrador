@@ -32,10 +32,10 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Ruff
-        run: ruff check app tests scripts
+        run: ruff check app tests scripts evals
 
       - name: Formato
-        run: ruff format --check app tests scripts
+        run: ruff format --check app tests scripts evals
 
       - name: Bandit
         run: bandit -q -r app -c pyproject.toml
