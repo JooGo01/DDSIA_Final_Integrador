@@ -19,16 +19,35 @@ class Bucket:
 class TokenBucketLimiter:
     """Permite rafagas cortas y despues repone a ritmo constante."""
 
+    # A partir de esta cantidad de claves se purgan las inactivas. El limitador de
+    # login se indexa por IP de origen, asi que sin purga el diccionario crece con
+    # cada cliente nuevo y nunca se achica.
+    MAX_KEYS = 10_000
+
     def __init__(self, capacity: int, refill_per_minute: int) -> None:
+        if capacity <= 0 or refill_per_minute <= 0:
+            raise ValueError("La capacidad y la reposicion tienen que ser mayores que cero.")
         self.capacity = capacity
         self.refill_rate = refill_per_minute / 60.0
         self._buckets: dict[str, Bucket] = {}
         self._lock = threading.Lock()
 
+    def _evict_idle(self, now: float) -> None:
+        """Descarta las claves que ya recuperaron todo su cupo: no aportan estado."""
+        full_again = self.capacity / self.refill_rate
+        self._buckets = {
+            key: bucket
+            for key, bucket in self._buckets.items()
+            if now - bucket.last_refill < full_again
+        }
+
     def check(self, key: str) -> tuple[bool, int]:
         """Consume un permiso para la clave. Devuelve (permitido, segundos para reintentar)."""
         now = time.monotonic()
         with self._lock:
+            if len(self._buckets) >= self.MAX_KEYS:
+                self._evict_idle(now)
+
             bucket = self._buckets.get(key)
             if bucket is None:
                 bucket = Bucket(tokens=float(self.capacity), last_refill=now)

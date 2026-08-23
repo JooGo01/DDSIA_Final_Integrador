@@ -1,5 +1,7 @@
 """Tests de los limites de uso: requests por minuto y presupuesto de tokens."""
 
+import pytest
+
 from app.core.ratelimit import TokenBucketLimiter, TokenBudget
 from tests.conftest import ANALYST_PASSWORD, auth_header
 
@@ -75,3 +77,27 @@ def test_sin_presupuesto_de_tokens_se_rechaza_la_consulta(indexed_client):
     )
     assert response.status_code == 429
     assert response.json()["type"].endswith("/token-budget-exhausted")
+
+
+def test_el_limitador_rechaza_configuracion_invalida():
+    with pytest.raises(ValueError):
+        TokenBucketLimiter(capacity=0, refill_per_minute=10)
+    with pytest.raises(ValueError):
+        TokenBucketLimiter(capacity=10, refill_per_minute=0)
+
+
+def test_las_claves_inactivas_se_purgan_al_llegar_al_tope():
+    limiter = TokenBucketLimiter(capacity=2, refill_per_minute=120)
+    limiter.MAX_KEYS = 5
+
+    # Se llenan claves de un solo uso, como haria un atacante rotando IP de origen.
+    for i in range(5):
+        limiter.check(f"10.0.0.{i}")
+    assert len(limiter._buckets) == 5
+
+    # Se simula que todas quedaron inactivas el tiempo suficiente para reponerse.
+    for bucket in limiter._buckets.values():
+        bucket.last_refill -= 3600
+
+    limiter.check("nueva-clave")
+    assert len(limiter._buckets) == 1
