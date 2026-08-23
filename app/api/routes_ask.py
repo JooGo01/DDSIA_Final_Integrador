@@ -18,6 +18,7 @@ from app.core.metrics import (
 )
 from app.guardrails.input_guard import check_question
 from app.guardrails.output_guard import check_answer, cosine_similarity
+from app.guardrails.scope_guard import check_scope, out_of_scope_answer
 from app.rag.generate import generate_answer
 from app.rag.ollama_client import OllamaError
 from app.schemas import AskRequest, AskResponse, Citation, Usage
@@ -65,6 +66,26 @@ async def ask(request: Request, payload: AskRequest, user: RequireAsk) -> AskRes
             title="Consulta rechazada",
             detail=verdict.message,
             status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # El corpus tiene alcance fijo. Una pregunta sobre otro documento de OWASP recupera
+    # fragmentos parecidos igual, y el modelo la contesta de memoria: se corta antes.
+    scope = check_scope(payload.question)
+    if not scope.in_scope:
+        guardrail_blocks.labels(stage="input", reason=f"scope_{scope.reason}").inc()
+        answers.labels(grounded="false").inc()
+        logger.info("out_of_scope", user=user.username, reason=scope.reason)
+        return AskResponse(
+            answer=out_of_scope_answer(scope.reason),
+            citations=[],
+            grounded=False,
+            request_id=get_request_id(),
+            usage=Usage(
+                input_tokens=0,
+                output_tokens=0,
+                retrieved_chunks=0,
+                latency_ms=int((time.perf_counter() - started) * 1000),
+            ),
         )
 
     # --- Recuperacion ---
