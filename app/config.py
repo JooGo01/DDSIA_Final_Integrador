@@ -37,7 +37,10 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://ollama:11434"
     llm_model: str = "llama3.2:3b"
     embedding_model: str = "nomic-embed-text"
-    llm_timeout_seconds: float = 90.0
+    # 90 s alcanzaba para consultas aisladas pero se agotaba bajo carga sostenida
+    # (la bateria de evals dispara 10 consultas/min): el modelo devolvia 503 a mitad
+    # de la corrida. 150 s cubre la latencia observada en ese escenario.
+    llm_timeout_seconds: float = 150.0
     llm_max_output_tokens: int = 512
     llm_temperature: float = 0.1
     # Cuanto tiempo Ollama mantiene el modelo en memoria tras la ultima consulta.
