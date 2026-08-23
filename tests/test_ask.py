@@ -97,3 +97,20 @@ def test_metrics_expone_formato_prometheus(indexed_client):
     assert response.status_code == 200
     assert "http_requests_total" in response.text
     assert "rag_answers_total" in response.text
+
+
+def test_se_respeta_un_request_id_del_cliente_si_es_seguro(client):
+    response = client.get("/health", headers={"X-Request-ID": "trace-abc_123.4"})
+    assert response.headers["X-Request-ID"] == "trace-abc_123.4"
+
+
+def test_se_descarta_un_request_id_demasiado_largo(client):
+    response = client.get("/health", headers={"X-Request-ID": "A" * 500})
+    devuelto = response.headers["X-Request-ID"]
+    assert devuelto != "A" * 500
+    assert len(devuelto) == 16
+
+
+def test_se_descarta_un_request_id_con_caracteres_raros(client):
+    response = client.get("/health", headers={"X-Request-ID": "<script>alert(1)</script>"})
+    assert "<script>" not in response.headers["X-Request-ID"]
