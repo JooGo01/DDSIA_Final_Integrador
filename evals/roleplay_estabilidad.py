@@ -43,7 +43,9 @@ def main() -> None:
                     "vuelta": vuelta,
                     "veredicto": veredicto,
                     "senales": senales,
-                    "respuesta": (body.get("answer") or "")[:200],
+                    # Sin truncar agresivamente: con 200 caracteres no se puede auditar despues
+                    # que hizo el modelo cuando cedio.
+                    "respuesta": (body.get("answer") or "")[:4000],
                 }
             )
             if veredicto == SIN_RESULTADO:

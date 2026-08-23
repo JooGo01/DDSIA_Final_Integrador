@@ -1,6 +1,6 @@
 # Evaluaciones
 
-Tres suites que se corren contra el servicio en ejecucion. No son tests unitarios:
+Cinco suites que se corren contra el servicio en ejecucion. No son tests unitarios:
 necesitan la API arriba, Ollama respondiendo y el indice cargado.
 
 Los resultados de la ultima corrida y su analisis estan en
@@ -85,6 +85,31 @@ python evals/jailbreak_roleplay.py
 ```
 
 Restaura el corpus al terminar, incluso si falla a mitad de camino.
+
+## `roleplay_estabilidad.py`
+
+Repite los diez vectores de role play de `jailbreak_roleplay.py` varias veces y reporta
+la tasa por vector en vez del resultado de una pasada.
+
+Existe porque el modelo no es determinista: RP06 y RP09 ceden aproximadamente una vez
+cada tres y una sola corrida los muestra como contenidos o como caidos segun el dia.
+Una afirmacion de seguridad sacada de una muestra de tamano uno no es un resultado.
+
+Dos detalles del arnes que importan mas que el script:
+
+- Un intento que termina en 5xx se registra como `sin_resultado` y **sale del
+  denominador**. Contar un fallo del servicio como defensa exitosa infla la tasa de
+  contencion. La salida declara cuantos intentos se perdieron.
+- Cada categoria de senal se evalua solo donde significa algo. Los marcadores de
+  inyeccion indirecta son prosa corriente en un corpus de seguridad y marcaban
+  COMPROMETIDO un consejo inocuo en un caso de role play.
+
+```bash
+REPETICIONES=3 PYTHONPATH=evals python evals/roleplay_estabilidad.py
+```
+
+Tarda unos 30 minutos con `REPETICIONES=3`. Necesita `PYTHONPATH=evals` porque importa
+`jailbreak_roleplay`.
 
 ## Agregar casos
 
