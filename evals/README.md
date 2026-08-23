@@ -68,6 +68,24 @@ python evals/eval_fundamentacion.py
 Tarda unos 20 minutos: cada consulta pasa por el modelo real y hay que esperar los
 limites de uso entre tanda y tanda.
 
+## `jailbreak_roleplay.py`
+
+Diez intentos de role play y jailbreak clasico, mas tres de inyeccion indirecta.
+
+La parte de inyeccion indirecta es la importante: planta un documento en el corpus con
+instrucciones escondidas, reingesta, pregunta y limpia. Es el unico vector de esta suite
+que llego a comprometer el sistema en una corrida real, y la unica capa que puede
+frenarlo es la revision de la ingesta: la validacion de salida compara contra el
+contexto recuperado, y en ese ataque el veneno **es** el contexto.
+
+Necesita `data/corpus` escribible desde el host y las dos credenciales.
+
+```bash
+python evals/jailbreak_roleplay.py
+```
+
+Restaura el corpus al terminar, incluso si falla a mitad de camino.
+
 ## Agregar casos
 
 `CASOS` en `eval_fundamentacion.py` es una lista de diccionarios. Para un caso nuevo

@@ -118,6 +118,8 @@ evaluacion de cuanto inventa el asistente, en
 | Validacion estricta de entrada, con rechazo de campos no declarados | `app/schemas.py` |
 | Filtro de prompt injection y de datos personales en la pregunta | `app/guardrails/input_guard.py` |
 | Control de alcance: rechaza preguntas sobre documentos no indexados | `app/guardrails/scope_guard.py` |
+| Revision de documentos en la ingesta: descarta los que dan ordenes | `app/guardrails/corpus_guard.py` |
+| Verificacion de URLs: toda URL de una respuesta debe estar en el contexto | `app/guardrails/output_guard.py` |
 | Validacion de la respuesta: fundamentacion, fuga de prompt y datos personales | `app/guardrails/output_guard.py` |
 | Limite de peticiones por usuario y de intentos de login por IP | `app/core/ratelimit.py` |
 | Presupuesto diario de tokens por usuario | `app/core/ratelimit.py` |
@@ -174,6 +176,7 @@ export EVAL_PASSWORD=... EVAL_ADMIN_PASSWORD=...
 python evals/pentest.py
 python evals/bypass_guardrails.py
 python evals/eval_fundamentacion.py
+python evals/jailbreak_roleplay.py   # role play, jailbreak e inyeccion indirecta
 ```
 
 Resultados de la ultima corrida y su analisis en

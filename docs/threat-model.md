@@ -58,14 +58,28 @@ cuatro preguntas de OWASP Threat Modeling.
 
 Severidad segun probabilidad por impacto en este contexto.
 
-### T-01 · Prompt injection indirecta desde el corpus · Tampering · Media
+### T-01 · Prompt injection indirecta desde el corpus · Tampering · Alta
 
 Un documento indexado contiene texto que parece una instruccion y el modelo lo obedece
 en lugar de citarlo.
 
-- **Controles**: el prompt de sistema declara que el contexto es material de referencia y no una fuente de ordenes; el servicio no expone ninguna herramienta, asi que el peor caso es una respuesta incorrecta y no una accion; la salida se valida contra el contexto antes de publicarse.
-- **Evidencia**: `test_respuesta_que_filtra_el_prompt_de_sistema_se_bloquea`, `test_respuesta_inventada_se_bloquea_por_falta_de_sustento`.
-- **Riesgo residual**: un documento manipulado puede degradar la calidad de la respuesta. Se acepta: el corpus se descarga de OWASP y el impacto se limita a texto.
+**Esta amenaza se probo y el control original fallo.** Se planto un documento con
+instrucciones escondidas y el asistente las obedecio en las tres consultas: transcribio
+su prompt de sistema, recomendo deshabilitar la autenticacion multifactor como si fuera
+una mitigacion de OWASP, y entrego una URL a un ejecutable de un dominio falso.
+
+El control que este documento declaraba —"la salida se valida contra el contexto"— es
+inutil contra este vector, y no por un error de implementacion sino por como esta
+definido: compara la respuesta con el contexto recuperado, y el contenido malicioso
+**era** ese contexto. Reproducir veneno fielmente puntua como perfectamente fundamentado.
+
+- **Controles efectivos**:
+  1. Revision en la ingesta (`app/guardrails/corpus_guard.py`). La frontera de confianza es la ingesta, no la salida. Un documento de referencia describe; no da ordenes al lector. Un fragmento que redefine reglas no entra al indice y se informa en la respuesta de `/admin/ingest`.
+  2. Verificacion de URLs en la salida. Toda URL de una respuesta debe aparecer en el contexto recuperado; ataca el dano concreto y de paso cubre enlaces alucinados.
+  3. El servicio no expone herramientas, asi que el techo del dano sigue siendo texto.
+- **Evidencia**: `tests/test_corpus_guard.py` y la seccion de inyeccion indirecta de `evals/jailbreak_roleplay.py`, que paso de 3/3 comprometido a 0/3. El documento plantado se lee pero no se indexa: la reingesta reporta 21 documentos leidos, 222 chunks —los mismos que el corpus limpio— y `rejected: ["A99_2025-Session_Hardening"]`.
+- **Falsos positivos**: cero sobre los 222 fragmentos del corpus real de OWASP.
+- **Riesgo residual**: la revision busca formas conocidas de dar ordenes. Una instruccion redactada como prosa descriptiva podria pasar. Lo que acota el dano es que el corpus se descarga de los repositorios oficiales y que el servicio no ejecuta acciones.
 
 ### T-02 · Prompt injection directa · Tampering · Media
 
@@ -139,7 +153,7 @@ Una dependencia o la imagen base introducen una vulnerabilidad.
 
 | ID | Escenario | STRIDE | Severidad | Decision |
 |---|---|---|---|---|
-| T-01 | Injection indirecta desde el corpus | T | Media | Mitigar |
+| T-01 | Injection indirecta desde el corpus | T | Alta | Mitigar en la ingesta |
 | T-02 | Injection directa del usuario | T | Media | Mitigar |
 | T-03 | Agotamiento de computo y cuota | D | Alta | Mitigar |
 | T-04 | Robo o forja de tokens | S | Alta | Mitigar |
