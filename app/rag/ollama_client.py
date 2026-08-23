@@ -20,6 +20,7 @@ class OllamaClient:
         self.timeout = settings.llm_timeout_seconds
         self.max_output_tokens = settings.llm_max_output_tokens
         self.temperature = settings.llm_temperature
+        self.keep_alive = settings.llm_keep_alive
         self._client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout)
 
     async def close(self) -> None:
@@ -34,13 +35,36 @@ class OllamaClient:
         except httpx.HTTPError:
             return False
 
+    async def warm_up(self) -> bool:
+        """Fuerza la carga de ambos modelos en memoria. Se llama al arrancar."""
+        try:
+            await self.embed(["warmup"])
+            await self._client.post(
+                "/api/chat",
+                json={
+                    "model": self.chat_model,
+                    "stream": False,
+                    "keep_alive": self.keep_alive,
+                    "options": {"num_predict": 1},
+                    "messages": [{"role": "user", "content": "ok"}],
+                },
+            )
+            return True
+        except (httpx.HTTPError, OllamaError):
+            return False
+
     async def embed(self, texts: list[str]) -> list[list[float]]:
         """Convierte una lista de textos en sus vectores."""
         if not texts:
             return []
         try:
             response = await self._client.post(
-                "/api/embed", json={"model": self.embedding_model, "input": texts}
+                "/api/embed",
+                json={
+                    "model": self.embedding_model,
+                    "input": texts,
+                    "keep_alive": self.keep_alive,
+                },
             )
             response.raise_for_status()
             embeddings = response.json().get("embeddings")
@@ -56,6 +80,9 @@ class OllamaClient:
         payload = {
             "model": self.chat_model,
             "stream": False,
+            # Mantiene el modelo cargado: sin esto, la primera consulta despues de un
+            # rato paga la carga completa en RAM y puede pasarse del timeout.
+            "keep_alive": self.keep_alive,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},

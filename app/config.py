@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 90.0
     llm_max_output_tokens: int = 512
     llm_temperature: float = 0.1
+    # Cuanto tiempo Ollama mantiene el modelo en memoria tras la ultima consulta.
+    llm_keep_alive: str = "30m"
 
     # RAG
     chroma_path: str = "/data/chroma"
@@ -53,6 +55,14 @@ class Settings(BaseSettings):
     # Validacion de entrada
     min_question_chars: int = 8
     max_question_chars: int = 600
+
+    @field_validator("requests_per_minute", "login_attempts_per_minute", "daily_token_budget")
+    @classmethod
+    def must_be_positive(cls, value: int) -> int:
+        """Un limite en cero dejaria el servicio inutilizable y divide por cero al reponer."""
+        if value <= 0:
+            raise ValueError("Los limites de uso tienen que ser mayores que cero.")
+        return value
 
     @field_validator("jwt_secret")
     @classmethod

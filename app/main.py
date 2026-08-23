@@ -1,5 +1,7 @@
 """Punto de entrada de la aplicacion FastAPI."""
 
+import asyncio
+import re
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -18,6 +20,11 @@ from app.rag.ollama_client import OllamaClient
 from app.rag.store import VectorStore
 
 logger = get_logger("main")
+
+# El cliente puede proponer su propio id de correlacion, pero solo se acepta si es
+# corto y alfanumerico: ese valor termina en cada linea de log, en la cabecera de
+# respuesta y en el cuerpo JSON, asi que no puede ser texto arbitrario del cliente.
+SAFE_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -55,6 +62,10 @@ async def lifespan(app: FastAPI):
     )
     app.state.token_budget = TokenBudget(limit=settings.daily_token_budget)
 
+    # El modelo se carga en RAM en segundo plano. Sin esto la primera consulta real
+    # paga la carga completa y puede pasarse del timeout.
+    warmup_task = asyncio.create_task(_warm_up_model(app))
+
     indexed_chunks.set(app.state.store.count())
     logger.info(
         "startup",
@@ -66,8 +77,16 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    warmup_task.cancel()
     await app.state.ollama.close()
     logger.info("shutdown")
+
+
+async def _warm_up_model(app: FastAPI) -> None:
+    """Carga los modelos en memoria sin bloquear el arranque del servidor."""
+    started = time.perf_counter()
+    ok = await app.state.ollama.warm_up()
+    logger.info("warmup_finished", ok=ok, seconds=round(time.perf_counter() - started, 1))
 
 
 def create_app() -> FastAPI:
@@ -85,7 +104,8 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def request_context(request: Request, call_next):
         """Asigna un request_id, mide la request y agrega las cabeceras de seguridad."""
-        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:16]
+        proposed = request.headers.get("X-Request-ID", "")
+        request_id = proposed if SAFE_REQUEST_ID.match(proposed) else uuid.uuid4().hex[:16]
         set_request_id(request_id)
         started = time.perf_counter()
 
