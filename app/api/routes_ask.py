@@ -135,6 +135,7 @@ async def ask(request: Request, payload: AskRequest, user: RequireAsk) -> AskRes
     # parecido: alcanza con que un fragmento la sostenga. Compararla contra los
     # cuatro concatenados diluye el puntaje de una respuesta enfocada.
     # Si el embedding falla, la respuesta se descarta: falla cerrado.
+    contexto = chr(10).join(text for text, _, _ in relevant)
     grounding = 0.0
     if relevant and raw_answer:
         try:
@@ -143,7 +144,12 @@ async def ask(request: Request, payload: AskRequest, user: RequireAsk) -> AskRes
         except OllamaError:
             logger.warning("grounding_check_failed", user=user.username)
 
-    checked = check_answer(raw_answer, has_hits=bool(relevant), grounding_similarity=grounding)
+    checked = check_answer(
+        raw_answer,
+        has_hits=bool(relevant),
+        grounding_similarity=grounding,
+        context=contexto,
+    )
     if not checked.grounded and checked.reason:
         guardrail_blocks.labels(stage="output", reason=checked.reason).inc()
     answers.labels(grounded=str(checked.grounded).lower()).inc()

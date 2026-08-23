@@ -29,6 +29,8 @@ SYSTEM_LEAK_PATTERNS = [
 # 0.58 y 0.78, y las de afuera entre 0.40 y 0.46. El corte va en el medio del hueco.
 MIN_GROUNDING_SIMILARITY = 0.55
 
+URL_PATTERN = re.compile(r"https?://[^\s<>\"')\]]+", re.IGNORECASE)
+
 
 @dataclass(frozen=True)
 class OutputCheck:
@@ -47,12 +49,26 @@ def cosine_similarity(first: list[float], second: list[float]) -> float:
     return dot / (norm_first * norm_second)
 
 
+def invented_urls(answer: str, context: str) -> list[str]:
+    """URLs de la respuesta que no aparecen en el contexto recuperado.
+
+    Una URL que el modelo no leyo del corpus la invento o la copio de un documento
+    manipulado. En los dos casos es un enlace que el usuario no deberia recibir.
+    """
+    return [url for url in URL_PATTERN.findall(answer) if url.rstrip(".,;:") not in context]
+
+
 def leaks_system_prompt(answer: str) -> bool:
     """True si la respuesta esta repitiendo las instrucciones internas."""
     return any(pattern.search(answer) for pattern in SYSTEM_LEAK_PATTERNS)
 
 
-def check_answer(raw_answer: str, has_hits: bool, grounding_similarity: float) -> OutputCheck:
+def check_answer(
+    raw_answer: str,
+    has_hits: bool,
+    grounding_similarity: float,
+    context: str = "",
+) -> OutputCheck:
     """Revisa la respuesta del modelo y devuelve la version que se puede publicar.
 
     La fundamentacion se mide por similitud semantica y no por palabras en comun,
@@ -69,6 +85,9 @@ def check_answer(raw_answer: str, has_hits: bool, grounding_similarity: float) -
 
     if find_pii(answer):
         return OutputCheck(FALLBACK_ANSWER, grounded=False, reason="pii")
+
+    if invented_urls(answer, context):
+        return OutputCheck(FALLBACK_ANSWER, grounded=False, reason="url_no_verificable")
 
     if grounding_similarity < MIN_GROUNDING_SIMILARITY:
         return OutputCheck(FALLBACK_ANSWER, grounded=False, reason="ungrounded")
