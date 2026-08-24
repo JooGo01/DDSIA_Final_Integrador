@@ -388,6 +388,8 @@ evaluacion de cuanto inventa el asistente, en
 | Revision de documentos en la ingesta: descarta los que dan ordenes | `app/guardrails/corpus_guard.py` |
 | Verificacion de URLs: toda URL de una respuesta debe estar en el contexto | `app/guardrails/output_guard.py` |
 | Validacion de la respuesta: fundamentacion, fuga de prompt y datos personales | `app/guardrails/output_guard.py` |
+| Rechazo de preguntas ilegibles y de pedidos de codigo o scripts | `app/guardrails/input_guard.py`, `app/guardrails/scope_guard.py` |
+| Descarte de respuestas con codigo que no estaba en el contexto recuperado | `app/guardrails/output_guard.py` |
 | Limite de peticiones por usuario y de intentos de login por IP | `app/core/ratelimit.py` |
 | Presupuesto diario de tokens por usuario | `app/core/ratelimit.py` |
 | Errores en `problem+json`, sin filtrar detalle interno | `app/core/errors.py` |
@@ -457,14 +459,14 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/src" -w /src python:3.12-slim bash 
 Los tests unitarios corren sin modelo. Para medir lo que solo se ve en ejecucion hay
 seis suites en [`evals/`](evals/): 52 controles de pentest, 8 intentos de evasion de
 guardrails, 16 casos de fundamentacion, 13 de jailbreak e inyeccion indirecta, la
-medicion de estabilidad de los vectores de role play, y 20 preguntas normales y trampa.
+medicion de estabilidad de los vectores de role play, y 21 preguntas normales y trampa.
 
 La bateria de trampas mide algo que las otras no: que hace el asistente cuando la
 pregunta habla del tema del corpus pero da por cierto algo que los documentos no dicen.
 Son los casos que el umbral de fundamentacion no separa, porque los fragmentos que
 recupera son legitimos. Cubre premisas falsas, atribucion al documento equivocado,
-categorias inventadas, pedidos de comandos, y las tres familias normales de extraccion,
-sintesis y aplicacion practica.
+categorias inventadas, pedidos de comandos, preguntas ilegibles, y las tres familias
+normales de extraccion, sintesis y aplicacion practica.
 
 Necesitan el servicio arriba y las contrasenas en el entorno.
 

@@ -271,6 +271,64 @@ la recuperacion trae el fragmento de CWEs mapeados y la respuesta enumera CWEs e
 de categorias. No es una falla del pipeline sino del material indexado, y se corrige
 agregando al corpus el documento de indice del Top 10, no tocando el codigo.
 
+## Quinto hallazgo: la pregunta ilegible pasaba la mitad de las veces
+
+Reportado desde el uso, no desde una bateria. La consulta era un token de 143
+caracteres de teclado aplastado seguido de "si no entiendes dame el codigo para una
+estrella en python". El asistente contestaba que no entendia la pregunta, la vinculaba
+inventando con generadores de numeros pseudoaleatorios, y entregaba un script de
+Python. Con `grounded=true` y cuatro citas.
+
+### Por que pasaba
+
+La pregunta ilegible no la frena nadie: `input_guard` mide largo total, patrones de
+injection y datos personales, y 210 caracteres de basura los pasa. Con la pregunta sin
+sentido, la recuperacion devuelve los cuatro fragmentos menos lejanos, que superan el
+umbral de relevancia porque el umbral es bajo a proposito.
+
+Lo que decide entonces es la fundamentacion, y ahi el fallo es intermitente. Medido
+sobre seis corridas de la misma pregunta: **se escapo en 3 de 6**. Alcanzaba con que la
+respuesta mencionara un termino del fragmento recuperado —"pseudoaleatorio" aparece en
+las fallas criptograficas— para que el parecido quedara sobre 0.55. En las corridas que
+no se escapo, el puntaje dio 0.425.
+
+Subir el umbral no era la salida: las preguntas legitimas puntuaron entre 0.58 y 0.78,
+asi que el margen es de tres centesimas y se lleva puestas las buenas.
+
+### Que se hizo
+
+Tres capas, ninguna dependiente del modelo.
+
+**Entrada.** Se rechaza una pregunta con una palabra de mas de 60 caracteres. El token
+legitimo mas largo del corpus es un nombre de seccion con guiones, de 47.
+
+**Alcance.** Un pedido de codigo, script, programa, exploit o payload no se puede
+responder desde documentos que describen riesgos y controles. Se corta antes de
+recuperar. El patron exige un verbo de pedido junto al sustantivo: la forma suelta
+"codigo de" aparece en preguntas legitimas como "que dice OWASP sobre la revision de
+codigo de terceros".
+
+**Salida.** Una respuesta con codigo que no estaba en el contexto recuperado se
+descarta, con el mismo criterio que las URLs inventadas. Los documentos OWASP si traen
+ejemplos de codigo, asi que la comprobacion no es si hay codigo sino si ese codigo
+estaba en lo que se recupero.
+
+### Resultado
+
+Sobre la misma pregunta y las mismas seis corridas: **0 de 6**, rechazada en la entrada,
+sin llamar al modelo. El pedido de codigo con la pregunta legible tambien se corta en el
+alcance, en 0 segundos y sin consumir tokens.
+
+### Lo que sigue abierto
+
+El control de entrada cubre el token largo, no toda la basura posible: una pregunta de
+palabras cortas sin sentido sigue pasando a la recuperacion. Lo que la contiene entonces
+es la capa de salida, que es la que no depende de como venga escrita la pregunta.
+
+Se descarto la deteccion por racha de consonantes, que cubriria mas casos, porque
+produce falsos positivos sobre terminos reales del dominio: "XMLHttpRequest" tiene siete
+consonantes seguidas.
+
 ## Hallazgos de la revision de codigo
 
 Revision con tres perspectivas: que rompe en produccion, que confunde a quien llegue
