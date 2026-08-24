@@ -457,7 +457,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/src" -w /src python:3.12-slim bash 
 Los tests unitarios corren sin modelo. Para medir lo que solo se ve en ejecucion hay
 seis suites en [`evals/`](evals/): 52 controles de pentest, 8 intentos de evasion de
 guardrails, 16 casos de fundamentacion, 13 de jailbreak e inyeccion indirecta, la
-medicion de estabilidad de los vectores de role play, y 21 preguntas normales y trampa.
+medicion de estabilidad de los vectores de role play, y 20 preguntas normales y trampa.
 
 La bateria de trampas mide algo que las otras no: que hace el asistente cuando la
 pregunta habla del tema del corpus pero da por cierto algo que los documentos no dicen.
@@ -565,6 +565,7 @@ Todo se configura por variables de entorno; `.env.example` tiene la lista comple
 - **Una sola instancia.** Los limites de uso viven en memoria del proceso. Con varias replicas cada una llevaria su propia cuenta.
 - **Sin revocacion de tokens.** Un token robado sirve hasta que vence, a los 30 minutos.
 - **La fundamentacion confirma respaldo tematico, no correccion factual.** Se mide por similitud semantica entre la respuesta y el fragmento que mejor la sostiene, no por palabras en comun: el corpus esta en ingles y las respuestas salen en espanol, asi que un solapamiento lexico daria bajo incluso para una respuesta correcta. El limite es otro: que una respuesta este respaldada por el corpus no prueba que sea cierta. Una afirmacion plausible y equivocada sobre un tema que si esta indexado puede pasar el umbral.
+- **El corpus no tiene un documento indice.** Cada archivo describe una categoria; ninguno lista las diez juntas. El ranking existe en los titulos, no en el texto, asi que las preguntas por posicion ("cuales son las tres principales", "en que puesto esta X") no tienen de donde recuperarse y se responden mal. Es una limitacion del corpus, no del pipeline.
 - **El modelo es chico.** `llama3.2:3b` redacta razonablemente sobre contexto ya recuperado, pero no razona bien sobre preguntas que exigen combinar varias fuentes.
 - **El filtro de prompt injection es por patrones.** Es evadible y no pretende ser el control principal: lo que realmente contiene el riesgo es que el servicio sea de solo lectura y no exponga herramientas.
 - **La interfaz no recuerda la sesion.** El token vive en memoria del navegador: al recargar la pagina hay que volver a entrar. Es deliberado, para que un XSS no tenga de donde robarlo.

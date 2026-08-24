@@ -16,6 +16,13 @@ from tests.conftest import auth_header
         ("Comparado con el Top 10 de 2021, que cambio?", "otra_edicion"),
         ("Que puntaje CVSS tiene Log4Shell?", "cve_puntual"),
         ("Como se explota CVE-2021-44228?", "cve_puntual"),
+        # Categorias por encima de las que existen: A01-A10 y API1-API10.
+        ("Resume las mitigaciones de API11: Cloud Metadata Exfiltration", "categoria_inexistente"),
+        ("Explicame A11:2025 Quantum Cryptography Breakdown", "categoria_inexistente"),
+        ("Detallame la categoria API25", "categoria_inexistente"),
+        # Ninguno de los dos documentos tiene anexos.
+        ("Que dice el Anexo B sobre inteligencia artificial?", "seccion_inexistente"),
+        ("Que hay en el appendix A del Top 10?", "seccion_inexistente"),
     ],
 )
 def test_preguntas_fuera_del_alcance_del_corpus(pregunta, motivo):
@@ -32,6 +39,11 @@ def test_preguntas_fuera_del_alcance_del_corpus(pregunta, motivo):
         "Que dice OWASP sobre fallas de registro y alertas?",
         "Como se limita el consumo de recursos en una API segun el Top 10 2023?",
         "Que riesgos trae la cadena de suministro segun OWASP Top 10 2025?",
+        # Las categorias que si existen no pueden confundirse con las inventadas.
+        "Que es A01:2025 Broken Access Control?",
+        "Que dice A10:2025 sobre condiciones excepcionales?",
+        "Resume API10:2023 Unsafe Consumption of APIs",
+        "Que dice API4:2023 sobre consumo de recursos?",
     ],
 )
 def test_preguntas_dentro_del_alcance_pasan(pregunta):
@@ -57,3 +69,9 @@ def test_el_endpoint_rechaza_fuera_de_alcance_sin_llamar_al_modelo(indexed_clien
     assert body["usage"]["output_tokens"] == 0
     # Lo importante: no se gastó una llamada al modelo.
     assert fake_ollama.generate_calls == antes
+
+
+def test_el_mensaje_dice_hasta_donde_llega_cada_listado():
+    mensaje = out_of_scope_answer("categoria_inexistente")
+    assert "A01 a A10" in mensaje
+    assert "API1 a API10" in mensaje
