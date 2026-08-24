@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     # Cuanto tiempo Ollama mantiene el modelo en memoria tras la ultima consulta.
     llm_keep_alive: str = "30m"
 
+    # Indexado automatico del corpus al arrancar cuando el indice esta vacio. Sin esto
+    # una instalacion nueva queda sin nada que recuperar y /ask contesta que no encontro
+    # la informacion hasta que alguien con admin:ingest dispare la ingesta a mano.
+    auto_ingest: bool = True
+
     # RAG
     chroma_path: str = "/data/chroma"
     corpus_path: str = "/data/corpus"

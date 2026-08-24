@@ -26,18 +26,35 @@ async def ingest(request: Request, payload: IngestRequest, user: RequireIngest) 
     store = request.app.state.store
     client = request.app.state.ollama
 
-    logger.info("ingest_requested", user=user.username, reset=payload.reset)
-    try:
-        documents, chunks, duration_ms, rejected = await ingest_corpus(
-            settings, store, client, reset=payload.reset
-        )
-    except OllamaError as exc:
+    # La ingesta del arranque y la que pide un administrador comparten el mismo
+    # indice: dos corridas simultaneas se pisarian los chunks. Se rechaza la segunda
+    # en vez de encolarla, porque esperar varios minutos con la conexion abierta
+    # termina en un timeout del cliente igual.
+    if request.app.state.ingest_lock.locked():
         raise AppError(
-            code="llm-unavailable",
-            title="Servicio de modelo no disponible",
-            detail="No se pudieron generar los embeddings. Verificá que Ollama este arriba.",
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        ) from exc
+            code="ingest-in-progress",
+            title="Indexacion en curso",
+            detail="Ya hay una indexacion en ejecucion. Esperá a que termine y reintentá.",
+            status_code=status.HTTP_409_CONFLICT,
+            headers={"Retry-After": "60"},
+        )
+
+    logger.info("ingest_requested", user=user.username, reset=payload.reset)
+    async with request.app.state.ingest_lock:
+        request.app.state.indexing = True
+        try:
+            documents, chunks, duration_ms, rejected = await ingest_corpus(
+                settings, store, client, reset=payload.reset
+            )
+        except OllamaError as exc:
+            raise AppError(
+                code="llm-unavailable",
+                title="Servicio de modelo no disponible",
+                detail="No se pudieron generar los embeddings. Verificá que Ollama este arriba.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ) from exc
+        finally:
+            request.app.state.indexing = False
 
     indexed_chunks.set(store.count())
     return IngestResponse(

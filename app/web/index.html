@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>OWASP RAG Assistant</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <header class="barra">
+    <div class="marca">
+      <h1>OWASP RAG Assistant</h1>
+      <p class="subtitulo">Top 10:2025 y API Security Top 10:2023</p>
+    </div>
+    <div class="estado-servicio">
+      <span id="estado-pill" class="pill pill-neutro" aria-live="polite">consultando…</span>
+      <span id="estado-detalle" class="detalle-estado"></span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Login -->
+    <section id="seccion-login" class="tarjeta">
+      <h2>Ingresar</h2>
+      <p class="ayuda">
+        Las credenciales de demostracion estan en el README del repositorio.
+        El token se guarda solo en memoria: si recargas la pagina hay que volver a entrar.
+      </p>
+      <form id="form-login" autocomplete="on">
+        <div class="campo">
+          <label for="usuario">Usuario</label>
+          <input id="usuario" name="usuario" type="text" autocomplete="username"
+                 required spellcheck="false" autocapitalize="none">
+        </div>
+        <div class="campo">
+          <label for="clave">Contrasena</label>
+          <input id="clave" name="clave" type="password" autocomplete="current-password" required>
+        </div>
+        <button id="boton-login" type="submit" class="primario">Ingresar</button>
+      </form>
+      <p id="error-login" class="error" role="alert" hidden></p>
+    </section>
+
+    <!-- Sesion iniciada -->
+    <section id="seccion-sesion" class="tarjeta tarjeta-sesion" hidden>
+      <div class="sesion-datos">
+        <span class="etiqueta">Sesion</span>
+        <strong id="sesion-usuario"></strong>
+        <span id="sesion-scopes" class="scopes"></span>
+      </div>
+      <div class="sesion-acciones">
+        <span id="sesion-vence" class="detalle-estado" title="Tiempo que le queda al token"></span>
+        <button id="boton-salir" type="button" class="secundario">Salir</button>
+      </div>
+    </section>
+
+    <!-- Consulta -->
+    <section id="seccion-consulta" class="tarjeta" hidden>
+      <h2>Preguntar</h2>
+      <form id="form-consulta">
+        <div class="campo">
+          <label for="pregunta">Pregunta</label>
+          <textarea id="pregunta" name="pregunta" rows="3"
+                    placeholder="Que controles previenen Broken Object Level Authorization?"
+                    minlength="8" maxlength="600" required></textarea>
+          <div class="pie-campo">
+            <span id="contador" class="detalle-estado">0 / 600</span>
+            <span class="detalle-estado">Entre 8 y 600 caracteres</span>
+          </div>
+        </div>
+        <div class="fila">
+          <div class="campo campo-corto">
+            <label for="fuente">Documento</label>
+            <select id="fuente" name="fuente">
+              <option value="all">Los dos</option>
+              <option value="web">OWASP Top 10:2025</option>
+              <option value="api">API Security Top 10:2023</option>
+            </select>
+          </div>
+          <button id="boton-preguntar" type="submit" class="primario">Preguntar</button>
+        </div>
+      </form>
+      <p id="error-consulta" class="error" role="alert" hidden></p>
+      <div id="cargando" class="cargando" hidden aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <span>Recuperando fragmentos y generando la respuesta… <span id="cronometro">0 s</span></span>
+        <span class="detalle-estado">El modelo corre local: la primera consulta puede tardar bastante.</span>
+      </div>
+    </section>
+
+    <!-- Respuesta -->
+    <section id="seccion-respuesta" class="tarjeta" hidden aria-live="polite">
+      <div class="encabezado-respuesta">
+        <h2>Respuesta</h2>
+        <span id="pill-fundamentada" class="pill"></span>
+      </div>
+      <p id="texto-respuesta" class="respuesta"></p>
+      <div id="bloque-citas">
+        <h3>Citas</h3>
+        <ul id="lista-citas" class="citas"></ul>
+      </div>
+      <dl id="metricas" class="metricas"></dl>
+    </section>
+
+    <!-- Administracion -->
+    <section id="seccion-admin" class="tarjeta" hidden>
+      <h2>Indice</h2>
+      <p class="ayuda">
+        El indice se construye solo la primera vez que arranca el servicio.
+        Reindexar sirve despues de cambiar los documentos del corpus.
+      </p>
+      <div class="fila">
+        <label class="checkbox">
+          <input id="reset-indice" type="checkbox">
+          Borrar el indice antes de reconstruirlo
+        </label>
+        <button id="boton-reindexar" type="button" class="secundario">Reindexar</button>
+      </div>
+      <p id="error-admin" class="error" role="alert" hidden></p>
+      <p id="resultado-admin" class="ok" role="status" hidden></p>
+    </section>
+  </main>
+
+  <footer>
+    <a href="/docs">Swagger</a>
+    <span aria-hidden="true">·</span>
+    <a href="/health">Health</a>
+    <span aria-hidden="true">·</span>
+    <a href="/metrics">Metricas</a>
+  </footer>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>

@@ -65,3 +65,6 @@ class HealthResponse(BaseModel):
     version: str
     llm_reachable: bool
     collection_chunks: int
+    # True mientras se esta construyendo el indice. Distingue "todavia no esta listo"
+    # de "quedo vacio", que desde afuera se ven igual: los dos dan status degraded.
+    indexing: bool = False

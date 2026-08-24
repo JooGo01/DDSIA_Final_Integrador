@@ -1,0 +1,336 @@
+/* Interfaz del asistente. Sin dependencias externas: la CSP no permite otro origen. */
+
+:root {
+  --fondo: #0f1115;
+  --superficie: #171a21;
+  --superficie-alta: #1e222b;
+  --borde: #2b3140;
+  --texto: #e6e8ee;
+  --texto-suave: #9aa3b2;
+  --acento: #4c8dff;
+  --acento-hover: #3b7bee;
+  --ok: #3ecf8e;
+  --alerta: #f0b429;
+  --error: #f2607a;
+  --radio: 10px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --fondo: #f5f6f8;
+    --superficie: #ffffff;
+    --superficie-alta: #eef0f4;
+    --borde: #d8dce4;
+    --texto: #1a1d23;
+    --texto-suave: #5b6472;
+    --acento: #2563eb;
+    --acento-hover: #1d4ed8;
+    --ok: #128a5b;
+    --alerta: #a86800;
+    --error: #c02a4a;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0 1rem 3rem;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.55;
+}
+
+/* --- Barra superior --- */
+
+.barra {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 1.5rem 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--borde);
+}
+
+.barra h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: -0.01em;
+}
+
+.subtitulo {
+  margin: 0.15rem 0 0;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.estado-servicio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+/* --- Bloques --- */
+
+main {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.tarjeta {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.tarjeta h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.tarjeta h3 {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--texto-suave);
+}
+
+.tarjeta-sesion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.25rem;
+}
+
+.sesion-datos { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.sesion-acciones { display: flex; align-items: center; gap: 0.75rem; }
+
+.etiqueta {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--texto-suave);
+}
+
+.scopes {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  color: var(--texto-suave);
+}
+
+.ayuda {
+  margin: 0 0 1rem;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+/* --- Formularios --- */
+
+.campo { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.9rem; }
+.campo-corto { margin-bottom: 0; min-width: 210px; }
+
+label {
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+input[type="text"], input[type="password"], textarea, select {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  background: var(--fondo);
+  color: var(--texto);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+textarea { resize: vertical; min-height: 4.5rem; }
+
+input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 1px;
+}
+
+.pie-campo { display: flex; justify-content: space-between; gap: 1rem; }
+
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--texto);
+}
+
+.checkbox input { accent-color: var(--acento); }
+
+button {
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.12s ease-in-out;
+}
+
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.primario { background: var(--acento); color: #fff; }
+.primario:hover:not(:disabled) { background: var(--acento-hover); }
+
+.secundario {
+  background: var(--superficie-alta);
+  color: var(--texto);
+  border-color: var(--borde);
+}
+.secundario:hover:not(:disabled) { border-color: var(--acento); }
+
+/* --- Estados --- */
+
+.pill {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--borde);
+  background: var(--superficie-alta);
+  color: var(--texto-suave);
+}
+
+.pill-ok { color: var(--ok); border-color: var(--ok); }
+.pill-alerta { color: var(--alerta); border-color: var(--alerta); }
+.pill-error { color: var(--error); border-color: var(--error); }
+.pill-neutro { color: var(--texto-suave); }
+
+.detalle-estado { color: var(--texto-suave); font-size: 0.78rem; }
+
+.error {
+  margin: 0.9rem 0 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--error);
+  color: var(--error);
+  font-size: 0.85rem;
+  background: color-mix(in srgb, var(--error) 8%, transparent);
+}
+
+.ok {
+  margin: 0.9rem 0 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--ok);
+  color: var(--ok);
+  font-size: 0.85rem;
+  background: color-mix(in srgb, var(--ok) 8%, transparent);
+}
+
+.cargando {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 1rem;
+  padding: 0.8rem;
+  border: 1px dashed var(--borde);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--borde);
+  border-top-color: var(--acento);
+  border-radius: 50%;
+  animation: girar 0.8s linear infinite;
+}
+
+@keyframes girar { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 3s; }
+}
+
+/* --- Respuesta --- */
+
+.encabezado-respuesta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.encabezado-respuesta h2 { margin: 0; }
+
+.respuesta {
+  margin: 0.75rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.citas { margin: 0; padding: 0; list-style: none; }
+
+.citas li {
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.4rem;
+  background: var(--superficie-alta);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.cita-documento { color: var(--texto-suave); font-size: 0.75rem; display: block; }
+.cita-relevancia { float: right; color: var(--texto-suave); font-size: 0.75rem; }
+
+.metricas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.6rem;
+  margin: 1.1rem 0 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--borde);
+}
+
+.metricas div { display: flex; flex-direction: column; }
+.metricas dt { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--texto-suave); }
+.metricas dd {
+  margin: 0.1rem 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+/* --- Pie --- */
+
+footer {
+  max-width: 860px;
+  margin: 2rem auto 0;
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+footer a { color: var(--texto-suave); }
+footer a:hover { color: var(--acento); }

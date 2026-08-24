@@ -5,6 +5,7 @@ import json
 import math
 import re
 import shutil
+import time
 from pathlib import Path
 
 import bcrypt
@@ -51,6 +52,9 @@ class FakeOllamaClient:
     async def is_reachable(self) -> bool:
         return self.reachable
 
+    async def warm_up(self) -> bool:
+        return self.reachable
+
     async def embed(self, texts: list[str]) -> list[list[float]]:
         return [deterministic_embedding(text) for text in texts]
 
@@ -73,8 +77,7 @@ def fake_ollama() -> FakeOllamaClient:
     return FakeOllamaClient()
 
 
-@pytest.fixture
-def client(tmp_path, monkeypatch, fake_ollama):
+def _build_client(tmp_path, monkeypatch, fake_ollama, auto_ingest: bool):
     """Levanta la app con almacenamiento temporal y el cliente de modelo simulado."""
     chroma_path = tmp_path / "chroma"
     corpus_path = tmp_path / "corpus"
@@ -108,6 +111,7 @@ def client(tmp_path, monkeypatch, fake_ollama):
     monkeypatch.setenv("LOG_LEVEL", "WARNING")
     monkeypatch.setenv("REQUESTS_PER_MINUTE", "10")
     monkeypatch.setenv("LOGIN_ATTEMPTS_PER_MINUTE", "5")
+    monkeypatch.setenv("AUTO_INGEST", "true" if auto_ingest else "false")
 
     from app.config import get_settings
 
@@ -122,6 +126,28 @@ def client(tmp_path, monkeypatch, fake_ollama):
         yield test_client
 
     get_settings.cache_clear()
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch, fake_ollama):
+    """Cliente con la ingesta automatica apagada: cada test indexa cuando quiere."""
+    yield from _build_client(tmp_path, monkeypatch, fake_ollama, auto_ingest=False)
+
+
+@pytest.fixture
+def auto_ingest_client(tmp_path, monkeypatch, fake_ollama):
+    """Cliente que indexa el corpus al arrancar, como un despliegue nuevo."""
+    yield from _build_client(tmp_path, monkeypatch, fake_ollama, auto_ingest=True)
+
+
+def esperar_indice(client: TestClient, intentos: int = 100) -> dict:
+    """Espera a que termine la ingesta que corre en segundo plano al arrancar."""
+    for _ in range(intentos):
+        salud = client.get("/health").json()
+        if salud["collection_chunks"] > 0 and not salud["indexing"]:
+            return salud
+        time.sleep(0.02)
+    raise AssertionError("la ingesta automatica del arranque no termino")
 
 
 def get_token(client: TestClient, username: str, password: str) -> str:

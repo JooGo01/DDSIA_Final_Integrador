@@ -5,9 +5,11 @@ import re
 import time
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api import routes_admin, routes_ask, routes_auth, routes_health
 from app.config import get_settings
@@ -16,7 +18,8 @@ from app.core.logging import configure_logging, get_logger, set_request_id
 from app.core.metrics import http_duration, http_requests, indexed_chunks
 from app.core.ratelimit import TokenBucketLimiter, TokenBudget
 from app.core.security import load_users
-from app.rag.ollama_client import OllamaClient
+from app.rag.ingest import ingest_corpus
+from app.rag.ollama_client import OllamaClient, OllamaError
 from app.rag.store import VectorStore
 
 logger = get_logger("main")
@@ -26,6 +29,10 @@ logger = get_logger("main")
 # respuesta y en el cuerpo JSON, asi que no puede ser texto arbitrario del cliente.
 SAFE_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 
+# Archivos de la interfaz web. Viven dentro del paquete para que la imagen los traiga
+# con el mismo COPY que el codigo y el contenedor pueda seguir siendo de solo lectura.
+WEB_DIR = Path(__file__).parent / "web"
+
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -33,12 +40,33 @@ SECURITY_HEADERS = {
     "Cache-Control": "no-store",
 }
 
+# Todo lo que carga la interfaz sale del mismo origen: no hay CDN, ni fuentes
+# externas, ni scripts en linea. Con eso, una respuesta del modelo que llegue con
+# HTML o con un script adentro no tiene forma de ejecutarse.
+# form-action queda en none porque el login usa fetch y nunca un submit nativo: si
+# el JavaScript fallara, el navegador no puede mandar la contrasena por la URL.
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self'; "
+    "img-src 'self' data:; "
+    "connect-src 'self'; "
+    "base-uri 'none'; "
+    "object-src 'none'; "
+    "frame-ancestors 'none'; "
+    "form-action 'none'"
+)
+
+# Swagger sirve su propio JS y CSS desde un CDN: con la politica de arriba no cargaria.
+CSP_EXEMPT_PREFIXES = ("/docs", "/openapi.json")
+
 DESCRIPTION = """
 Asistente de preguntas y respuestas sobre **OWASP Top 10:2025** y
 **OWASP API Security Top 10:2023**, con recuperacion sobre los documentos
 originales y generacion mediante un modelo servido localmente.
 
-Para probar: pedí un token en `/auth/token` y usá el boton **Authorize**.
+Hay una interfaz web en `/`. Para probar desde aca: pedí un token en
+`/auth/token` y usá el boton **Authorize**.
 """
 
 
@@ -61,10 +89,13 @@ async def lifespan(app: FastAPI):
         refill_per_minute=settings.login_attempts_per_minute,
     )
     app.state.token_budget = TokenBudget(limit=settings.daily_token_budget)
+    # Serializa las ingestas: la del arranque y las que pida un administrador.
+    app.state.ingest_lock = asyncio.Lock()
+    app.state.indexing = False
 
-    # El modelo se carga en RAM en segundo plano. Sin esto la primera consulta real
-    # paga la carga completa y puede pasarse del timeout.
-    warmup_task = asyncio.create_task(_warm_up_model(app))
+    # El modelo se carga en RAM y el indice se construye en segundo plano. Sin esto
+    # la primera consulta real paga la carga completa y puede pasarse del timeout.
+    startup_task = asyncio.create_task(_startup_tasks(app))
 
     indexed_chunks.set(app.state.store.count())
     logger.info(
@@ -77,9 +108,24 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    warmup_task.cancel()
+    startup_task.cancel()
     await app.state.ollama.close()
     logger.info("shutdown")
+
+
+async def _startup_tasks(app: FastAPI) -> None:
+    """Carga los modelos y deja el indice listo, sin bloquear el arranque del servidor.
+
+    Corre como tarea de fondo, y la excepcion de una tarea que nadie espera no aparece
+    en ningun lado: se registra explicitamente para que un arranque a medias se vea.
+    """
+    try:
+        await _warm_up_model(app)
+        await _auto_ingest(app)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.error("startup_task_failed", error=type(exc).__name__, detail=str(exc))
 
 
 async def _warm_up_model(app: FastAPI) -> None:
@@ -87,6 +133,49 @@ async def _warm_up_model(app: FastAPI) -> None:
     started = time.perf_counter()
     ok = await app.state.ollama.warm_up()
     logger.info("warmup_finished", ok=ok, seconds=round(time.perf_counter() - started, 1))
+
+
+async def _auto_ingest(app: FastAPI) -> None:
+    """Construye el indice si esta vacio.
+
+    Es lo que permite que una instalacion nueva responda sin que nadie entre como
+    administrador a reindexar. Si el indice ya esta persistido en el volumen no hace
+    nada, asi que los arranques siguientes son inmediatos.
+    """
+    settings = app.state.settings
+    store = app.state.store
+    if not settings.auto_ingest or store.count() > 0:
+        return
+
+    async with app.state.ingest_lock:
+        # Un administrador pudo disparar la ingesta mientras se cargaba el modelo.
+        if store.count() > 0:
+            return
+
+        app.state.indexing = True
+        started = time.perf_counter()
+        logger.info("auto_ingest_started", corpus=settings.corpus_path)
+        try:
+            documents, chunks, _duration_ms, rejected = await ingest_corpus(
+                settings, store, app.state.ollama, reset=False
+            )
+        except (OllamaError, OSError) as exc:
+            # Que la ingesta automatica falle no puede tumbar el servicio: queda
+            # degradado, /health lo informa y el endpoint de administracion sigue
+            # disponible para reintentarla. El motivo va al log.
+            logger.warning("auto_ingest_failed", error=type(exc).__name__, detail=str(exc))
+            return
+        finally:
+            app.state.indexing = False
+
+        indexed_chunks.set(store.count())
+        logger.info(
+            "auto_ingest_finished",
+            documents=documents,
+            chunks=chunks,
+            rejected=rejected,
+            seconds=round(time.perf_counter() - started, 1),
+        )
 
 
 def create_app() -> FastAPI:
@@ -123,6 +212,8 @@ def create_app() -> FastAPI:
         response.headers["X-Request-ID"] = request_id
         for header, value in SECURITY_HEADERS.items():
             response.headers.setdefault(header, value)
+        if not request.url.path.startswith(CSP_EXEMPT_PREFIXES):
+            response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
         return response
 
     register_error_handlers(app)
@@ -132,9 +223,12 @@ def create_app() -> FastAPI:
     app.include_router(routes_ask.router)
     app.include_router(routes_admin.router)
 
+    app.mount("/assets", StaticFiles(directory=WEB_DIR / "assets"), name="assets")
+
     @app.get("/", include_in_schema=False)
-    async def root() -> RedirectResponse:
-        return RedirectResponse(url="/docs")
+    async def interfaz_web() -> FileResponse:
+        """Sirve la interfaz web."""
+        return FileResponse(WEB_DIR / "index.html", media_type="text/html")
 
     return app
 

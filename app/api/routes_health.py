@@ -35,6 +35,7 @@ async def health(request: Request) -> HealthResponse:
         version=settings.app_version,
         llm_reachable=llm_reachable,
         collection_chunks=chunks,
+        indexing=request.app.state.indexing,
     )
 
 
