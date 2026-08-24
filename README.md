@@ -226,6 +226,8 @@ Abri **<http://localhost:8000>**.
    - **operativo** — ya se puede preguntar. Al lado dice cuantos fragmentos hay.
    - **degradado** — el modelo no responde, o el indice quedo vacio.
 3. Escribi la pregunta y elegi sobre cual de los dos documentos buscar.
+4. Arriba a la derecha se elige el tema: automatico, claro u oscuro. El automatico sigue
+   la preferencia del sistema; la eleccion manual queda guardada en el navegador.
 
 La respuesta llega con sus citas, si esta fundamentada o no, y las medidas de la consulta
 (fragmentos recuperados, tokens y latencia). Entrando como `admin` aparece ademas el
@@ -453,9 +455,16 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/src" -w /src python:3.12-slim bash 
 ## Evaluaciones contra el servicio real
 
 Los tests unitarios corren sin modelo. Para medir lo que solo se ve en ejecucion hay
-cinco suites en [`evals/`](evals/): 52 controles de pentest, 8 intentos de evasion de
-guardrails, 16 casos de fundamentacion, 13 de jailbreak e inyeccion indirecta, y la
-medicion de estabilidad de los vectores de role play.
+seis suites en [`evals/`](evals/): 52 controles de pentest, 8 intentos de evasion de
+guardrails, 16 casos de fundamentacion, 13 de jailbreak e inyeccion indirecta, la
+medicion de estabilidad de los vectores de role play, y 21 preguntas normales y trampa.
+
+La bateria de trampas mide algo que las otras no: que hace el asistente cuando la
+pregunta habla del tema del corpus pero da por cierto algo que los documentos no dicen.
+Son los casos que el umbral de fundamentacion no separa, porque los fragmentos que
+recupera son legitimos. Cubre premisas falsas, atribucion al documento equivocado,
+categorias inventadas, pedidos de comandos, y las tres familias normales de extraccion,
+sintesis y aplicacion practica.
 
 Necesitan el servicio arriba y las contrasenas en el entorno.
 
@@ -466,6 +475,7 @@ python evals/pentest.py
 python evals/bypass_guardrails.py
 python evals/eval_fundamentacion.py
 python evals/jailbreak_roleplay.py   # role play, jailbreak e inyeccion indirecta
+python evals/preguntas_trampa.py     # preguntas normales y trampa
 
 # Repite los vectores de role play para medir la tasa en vez de una sola pasada:
 # el modelo no es determinista y el mismo ataque cede en una corrida y no en la siguiente.
@@ -480,6 +490,7 @@ python evals/pentest.py
 python evals/bypass_guardrails.py
 python evals/eval_fundamentacion.py
 python evals/jailbreak_roleplay.py
+python evals/preguntas_trampa.py
 
 $env:REPETICIONES = "3"; $env:PYTHONPATH = "evals"; python evals/roleplay_estabilidad.py
 ```
@@ -492,6 +503,7 @@ python evals/pentest.py
 python evals/bypass_guardrails.py
 python evals/eval_fundamentacion.py
 python evals/jailbreak_roleplay.py
+python evals/preguntas_trampa.py
 
 set REPETICIONES=3
 set PYTHONPATH=evals
