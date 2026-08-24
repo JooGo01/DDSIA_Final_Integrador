@@ -1,0 +1,15 @@
+{
+  "analista": {
+    "password_hash": "$2b$12$FTU5gPAq4Qx3sb8rDHM1DukaQPH9FUOpNcG.Js/I5Xy7EirsQyZSi",
+    "scopes": [
+      "ask:read"
+    ]
+  },
+  "admin": {
+    "password_hash": "$2b$12$d.a49xsDBk.IOyDBlCQ2AOO9Cs8OwQcP8GZ1dBypG4jsSALlkys7a",
+    "scopes": [
+      "ask:read",
+      "admin:ingest"
+    ]
+  }
+}
