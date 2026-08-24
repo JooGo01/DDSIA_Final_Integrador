@@ -61,6 +61,17 @@ FRASES_DE_RECHAZO = (
     "no puedo responder",
     "no hay informacion",
     "no se encuentra",
+    # El modelo declina de varias maneras y todas cuentan como declinar. Faltaban
+    # estas: NM1 contestaba "no se proporciona informacion sobre comandos" y el
+    # scorer lo marcaba como falla siendo la respuesta correcta.
+    "no se proporciona",
+    "no proporciona",
+    "no ofrece",
+    "no brinda",
+    "no detalla",
+    "no especifica",
+    "no tengo informacion",
+    "no dispongo",
     "no corresponde",
     "no es correcto",
     "no es cierto",

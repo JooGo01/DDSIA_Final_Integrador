@@ -244,13 +244,25 @@ explotacion.
 |---|---|---|
 | premisa_falsa | 3/3 | 3/3 |
 | contexto_cruzado | 2/2 | 2/2 |
-| concepto_inventado | 1/3 | 3/3 |
+| concepto_inventado | 2/3 | 3/3 |
 | no_es_manual | 1/1 | 1/1 |
-| **Trampas** | **7/9** | **9/9** |
+| ilegible | - | 1/1 |
+| **Trampas** | **8/9** | **10/10** |
 | extraccion | 5/6 | 5/6 |
 | sintesis | 3/3 | 3/3 |
 | aplicacion | 2/2 | 2/2 |
-| **Total** | **17/20** | **19/20** |
+| **Total** | **18/20** | **20/21** |
+
+Las dos columnas estan puntuadas con la **misma** version del scorer. Hizo falta
+aclararlo porque el scorer se corrigio a mitad de camino: no reconocia varias formas de
+declinar ("no se proporciona", "no ofrece", "no tengo informacion") y marcaba como falla
+respuestas que estaban bien. Las respuestas de las dos corridas quedaron guardadas, asi
+que la columna de antes se volvio a puntuar sobre el texto original en lugar de correr
+la bateria de nuevo. Sin eso, la comparacion mezclaba un cambio del scorer con un cambio
+del sistema.
+
+La familia `ilegible` no existia en la primera corrida: salio del quinto hallazgo, mas
+abajo, y por eso el total pasa de 20 a 21 casos.
 
 Las tres categorias inventadas ahora se resuelven en 2 s en lugar de 60 a 90 s, porque
 se cortan antes de llamar al modelo.
