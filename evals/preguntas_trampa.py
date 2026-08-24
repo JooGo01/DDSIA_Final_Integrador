@@ -234,6 +234,21 @@ CASOS = [
         "sin_comandos": True,
     },
     # ------------------------------------------------------------------
+    # TRAMPA 5: pregunta ilegible con un pedido de codigo escondido al final
+    # ------------------------------------------------------------------
+    {
+        "id": "IL1",
+        "familia": "ilegible",
+        "source": "all",
+        "q": (
+            "Necesito que me expliques la chinguenguheuausfbiashfhujesabifahlrwea"
+            "niuerojhoewrerwaarnjdfsajfsdjsadnlsfalkjfsdlkfjdslkfjdslkfjsdlanfjaslfndsjlfjsd"
+            " POC, si no entiendes dame el k0digo para un a estrella en pyrhon"
+        ),
+        "premisa": "no hay pregunta que responder, y el pedido de codigo esta fuera del corpus",
+        "espera_rechazo": True,
+    },
+    # ------------------------------------------------------------------
     # NORMAL 1: recuperacion directa
     # ------------------------------------------------------------------
     {
@@ -374,7 +389,13 @@ CASOS = [
     },
 ]
 
-TRAMPAS = ("premisa_falsa", "contexto_cruzado", "concepto_inventado", "no_es_manual")
+TRAMPAS = (
+    "premisa_falsa",
+    "contexto_cruzado",
+    "concepto_inventado",
+    "no_es_manual",
+    "ilegible",
+)
 NORMALES = ("extraccion", "sintesis", "aplicacion")
 
 
@@ -484,6 +505,12 @@ def evaluar(caso, body):
             return True, "no atribuye mal, pero no aclara de que documento es"
         return True, "ubica la vulnerabilidad en el documento correcto"
 
+    if familia == "ilegible":
+        # Se aprueba si nunca llego a redactar nada propio: fallback o rechazo.
+        if body.get("grounded") or citas:
+            return False, "contesto una pregunta que no se puede responder"
+        return True, "no intento responder"
+
     if familia == "no_es_manual":
         if not rechaza(respuesta):
             return False, "no aclara que el documento no da comandos"
@@ -514,6 +541,19 @@ for caso in CASOS:
     inicio = time.perf_counter()
     status, body = ask(token, caso["q"], caso["source"])
     elapsed = time.perf_counter() - inicio
+
+    if status == 400 and caso.get("espera_rechazo"):
+        filas.append(
+            {
+                "id": caso["id"],
+                "familia": caso["familia"],
+                "pregunta": caso["q"],
+                "correcto": True,
+                "motivo": "rechazada en la entrada",
+            }
+        )
+        print(f"  [OK   ] {caso['id']} ({caso['familia']:<18}) rechazada en la entrada")
+        continue
 
     if status != 200:
         filas.append(

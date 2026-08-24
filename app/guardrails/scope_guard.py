@@ -61,12 +61,27 @@ NONEXISTENT_SECTIONS = re.compile(
     re.IGNORECASE,
 )
 
+# Pedidos de codigo. Los documentos describen riesgos y controles: no traen scripts
+# ni exploits, asi que un pedido de codigo no se puede responder desde el corpus.
+#
+# El patron exige un verbo de pedido y despues el sustantivo, con poco texto en el
+# medio. La forma suelta ("codigo de", "codigo para") no sirve: aparece en preguntas
+# legitimas como "que dice OWASP sobre la revision de codigo de terceros".
+# El 0 alterna con la o porque el caso que lo motivo escribia "k0digo".
+CODE_REQUEST = re.compile(
+    r"\b(dame|damelo|pasame|pas[aá]me|escrib[ií]\w*|escribe|genera\w*|"
+    r"h[aá]ce?me|hazme|mostrame|mostr[aá]me|muestrame|mu[eé]strame|necesito|quiero|dame)\b"
+    r"[^.?!]{0,30}?\b([ck][o0ó]digo|code|script|programa|exploit|payload)\b",
+    re.IGNORECASE,
+)
+
 OUT_OF_SCOPE_CHECKS = (
     ("otro_proyecto_owasp", OTHER_OWASP_PROJECTS),
     ("otra_edicion", OTHER_EDITIONS),
     ("cve_puntual", SPECIFIC_CVES),
     ("categoria_inexistente", INVENTED_CATEGORIES),
     ("seccion_inexistente", NONEXISTENT_SECTIONS),
+    ("pedido_de_codigo", CODE_REQUEST),
 )
 
 
@@ -95,5 +110,8 @@ def out_of_scope_answer(reason: str) -> str:
             "API Security Top 10:2023 va de API1 a API10"
         ),
         "seccion_inexistente": "ninguno de los dos documentos tiene anexos ni apendices",
+        "pedido_de_codigo": (
+            "los documentos describen riesgos y controles, no traen codigo ni scripts"
+        ),
     }.get(reason, "la consulta queda fuera del alcance del corpus")
     return f"No puedo responder eso: {detalle}. " f"Este asistente solo cubre {CORPUS_SCOPE}."

@@ -163,3 +163,69 @@ def test_se_descarta_una_respuesta_que_mezcla_la_nomenclatura(respuesta):
 def test_los_codigos_validos_de_cada_documento_pasan(respuesta):
     resultado = check_answer(respuesta, has_hits=True, grounding_similarity=0.9, context=respuesta)
     assert resultado.grounded is True, resultado.reason
+
+
+# La pregunta que reporto el problema: un token de teclado aplastado y, al final,
+# un pedido de codigo. Recuperaba cuatro fragmentos al azar y el modelo improvisaba.
+PREGUNTA_ILEGIBLE = (
+    "Necesito que me expliques la chinguenguheuausfbiashfhujesabifahlrwea"
+    "niuerojhoewrerwaarnjdfsajfsdjsadnlsfalkjfsdlkfjdslkfjdslkfjsdlanfjaslfndsjlfjsd"
+    " POC, si no entiendes dame el k0digo para un a estrella en pyrhon"
+)
+
+
+def test_se_rechaza_una_pregunta_con_una_palabra_sin_sentido():
+    resultado = check_question(PREGUNTA_ILEGIBLE, 8, 600)
+    assert resultado.allowed is False
+    assert resultado.reason == "ilegible"
+
+
+@pytest.mark.parametrize(
+    "pregunta",
+    [
+        # Nombres de seccion con guiones: el token legitimo mas largo del corpus.
+        "Que dice el documento sobre unrestricted-access-to-sensitive-business-flows?",
+        "Explicame A08:2025 Software or Data Integrity Failures",
+    ],
+)
+def test_las_palabras_largas_legitimas_pasan(pregunta):
+    assert check_question(pregunta, 8, 600).allowed is True
+
+
+@pytest.mark.parametrize(
+    "respuesta",
+    [
+        "Puedo ayudarte. En Python:\n\nimport random\nprint(random.randint(0, 9))",
+        "Aca va el script:\n\n```python\nfor i in range(5):\n    print(i)\n```",
+        "Usa esto: def generar(): return 1",
+        "Agrega #include <stdio.h> al principio.",
+    ],
+)
+def test_se_descarta_una_respuesta_con_codigo_que_no_estaba_en_el_contexto(respuesta):
+    contexto = "Broken Access Control permite acceder a objetos de otros usuarios."
+    resultado = check_answer(respuesta, has_hits=True, grounding_similarity=0.9, context=contexto)
+    assert resultado.grounded is False
+    assert resultado.reason == "codigo_inventado"
+    assert resultado.answer == FALLBACK_ANSWER
+
+
+def test_el_codigo_que_venia_en_el_contexto_no_se_descarta():
+    """Los documentos OWASP traen ejemplos de codigo: no se puede prohibir todo codigo."""
+    contexto = "Ejemplo del documento:\n\nfor (int i = 0; i < n; i++) {\n  process(i);\n}\n"
+    respuesta = "El documento muestra el bucle for (int i = 0; i < n; i++) { process(i); }"
+    resultado = check_answer(respuesta, has_hits=True, grounding_similarity=0.9, context=contexto)
+    assert resultado.grounded is True, resultado.reason
+
+
+@pytest.mark.parametrize(
+    "respuesta",
+    [
+        "Broken Access Control se previene validando la autorizacion en el servidor.",
+        "La definicion de inyeccion incluye pasar datos sin sanitizar a un interprete.",
+        "Es una clase de vulnerabilidad comun: el control de acceso roto.",
+    ],
+)
+def test_la_prosa_sin_codigo_pasa(respuesta):
+    contexto = "Broken Access Control e inyeccion son categorias del Top 10."
+    resultado = check_answer(respuesta, has_hits=True, grounding_similarity=0.9, context=contexto)
+    assert resultado.grounded is True, resultado.reason

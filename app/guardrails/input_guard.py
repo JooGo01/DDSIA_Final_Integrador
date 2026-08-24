@@ -24,6 +24,17 @@ INJECTION_PATTERNS = [
     re.compile(r"</?(system|instructions?)>", re.IGNORECASE),
 ]
 
+# Largo maximo de una palabra suelta. Ninguna palabra del castellano ni del ingles
+# se acerca; el token mas largo que aparece de forma legitima es un nombre de seccion
+# con guiones, como "unrestricted-access-to-sensitive-business-flows", de 47. El tope
+# queda con holgura sobre eso.
+#
+# Existe por un caso medido: una pregunta con un token de 143 caracteres de teclado
+# aplastado recuperaba cuatro fragmentos al azar, y sobre ese contexto el modelo
+# improvisaba. La respuesta paso el umbral de fundamentacion en 3 de 6 corridas,
+# porque alcanzaba con que mencionara un termino del fragmento recuperado.
+MAX_WORD_LENGTH = 60
+
 # Datos personales que no deberian viajar hacia el modelo.
 PII_PATTERNS = {
     "email": re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.]{2,}\b"),
@@ -45,6 +56,11 @@ def looks_like_injection(question: str) -> bool:
     return any(pattern.search(question) for pattern in INJECTION_PATTERNS)
 
 
+def longest_word(question: str) -> int:
+    """Largo de la palabra mas larga. Un valor absurdo delata texto sin sentido."""
+    return max((len(word) for word in question.split()), default=0)
+
+
 def find_pii(text: str) -> list[str]:
     """Devuelve los tipos de dato personal detectados en el texto."""
     return [name for name, pattern in PII_PATTERNS.items() if pattern.search(text)]
@@ -61,6 +77,13 @@ def check_question(question: str, min_chars: int, max_chars: int) -> GuardResult
 
     if len(stripped) > max_chars:
         return GuardResult(False, "length", f"La pregunta supera los {max_chars} caracteres.")
+
+    if longest_word(stripped) > MAX_WORD_LENGTH:
+        return GuardResult(
+            False,
+            "ilegible",
+            "La consulta tiene una palabra sin sentido. Reformulala con texto legible.",
+        )
 
     if looks_like_injection(stripped):
         return GuardResult(

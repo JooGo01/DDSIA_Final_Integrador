@@ -45,6 +45,25 @@ MIXED_NOMENCLATURE = re.compile(
     re.IGNORECASE,
 )
 
+# Marcas de que la respuesta trae codigo ejecutable. Se comparan contra el contexto,
+# igual que las URLs: los documentos OWASP si traen fragmentos de codigo de ejemplo,
+# asi que la pregunta no es si hay codigo sino si ese codigo estaba en lo recuperado.
+#
+# Aparecio con una pregunta ilegible que terminaba en "si no entiendes dame el
+# codigo para una estrella en python". El modelo aclaraba que no entendia y despues
+# entregaba un script, y la respuesta pasaba el umbral de fundamentacion porque la
+# parte de arriba mencionaba terminos del fragmento recuperado.
+CODE_MARKERS = (
+    re.compile(r"```"),
+    re.compile(r"^\s*(import|from)\s+\w+", re.MULTILINE),
+    # Sin ancla de linea: el modelo mete la definicion en el medio de la prosa. Pide
+    # espacio y parentesis o dos puntos, asi que "definicion" o "clase de" no matchean.
+    re.compile(r"\b(def|class)\s+\w+\s*[(:]"),
+    re.compile(r"\bprint\s*\(", re.IGNORECASE),
+    re.compile(r"#include\s*<"),
+    re.compile(r"\b(for|while)\s*\(.*\)\s*\{"),
+)
+
 
 @dataclass(frozen=True)
 class OutputCheck:
@@ -70,6 +89,19 @@ def invented_urls(answer: str, context: str) -> list[str]:
     manipulado. En los dos casos es un enlace que el usuario no deberia recibir.
     """
     return [url for url in URL_PATTERN.findall(answer) if url.rstrip(".,;:") not in context]
+
+
+def invented_code(answer: str, context: str) -> bool:
+    """True si la respuesta trae codigo que no estaba en el contexto recuperado.
+
+    El criterio es el de las URLs: si el marcador de codigo no aparece en lo que se
+    recupero, el modelo lo escribio de su preentrenamiento. Un asistente sobre marcos
+    de riesgo no tiene por que entregar scripts.
+    """
+    for pattern in CODE_MARKERS:
+        if pattern.search(answer) and not pattern.search(context):
+            return True
+    return False
 
 
 def leaks_system_prompt(answer: str) -> bool:
@@ -105,6 +137,9 @@ def check_answer(
 
     if MIXED_NOMENCLATURE.search(answer):
         return OutputCheck(FALLBACK_ANSWER, grounded=False, reason="nomenclatura_cruzada")
+
+    if invented_code(answer, context):
+        return OutputCheck(FALLBACK_ANSWER, grounded=False, reason="codigo_inventado")
 
     if grounding_similarity < MIN_GROUNDING_SIMILARITY:
         return OutputCheck(FALLBACK_ANSWER, grounded=False, reason="ungrounded")
