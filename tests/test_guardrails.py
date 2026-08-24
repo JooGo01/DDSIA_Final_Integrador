@@ -131,3 +131,35 @@ def test_respuesta_sostenida_por_el_contexto_pasa():
         grounding_similarity=0.72,
     )
     assert resultado.grounded is True
+
+
+@pytest.mark.parametrize(
+    "respuesta",
+    [
+        # La respuesta real que devolvio el modelo midiendo contexto cruzado: acierta
+        # que es API4:2023 y despues inventa un codigo que no existe.
+        "El problema se clasifica como API4:2023. En este caso, la respuesta es A04:2023.",
+        "Corresponde a A01:2023 segun el documento.",
+        "Esta descrito en API7:2025.",
+    ],
+)
+def test_se_descarta_una_respuesta_que_mezcla_la_nomenclatura(respuesta):
+    resultado = check_answer(respuesta, has_hits=True, grounding_similarity=0.9, context=respuesta)
+    assert resultado.grounded is False
+    assert resultado.reason == "nomenclatura_cruzada"
+    assert resultado.answer == FALLBACK_ANSWER
+
+
+@pytest.mark.parametrize(
+    "respuesta",
+    [
+        # Los codigos que si existen en el corpus tienen que pasar.
+        "Broken Access Control es A01:2025 en el Top 10 web.",
+        "BOLA es API1:2023 y BFLA es API5:2023.",
+        "Unsafe Consumption of APIs es API10:2023.",
+        "A10:2025 cubre el manejo de condiciones excepcionales.",
+    ],
+)
+def test_los_codigos_validos_de_cada_documento_pasan(respuesta):
+    resultado = check_answer(respuesta, has_hits=True, grounding_similarity=0.9, context=respuesta)
+    assert resultado.grounded is True, resultado.reason

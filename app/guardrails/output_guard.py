@@ -31,6 +31,20 @@ MIN_GROUNDING_SIMILARITY = 0.55
 
 URL_PATTERN = re.compile(r"https?://[^\s<>\"')\]]+", re.IGNORECASE)
 
+# Nomenclatura cruzada entre los dos documentos. El Top 10:2025 numera A01 a A10 y
+# el API Security Top 10:2023 numera API1 a API10: verificado sobre el corpus. Un
+# codigo que combina el prefijo de un listado con el ano del otro no puede haber
+# salido del contexto, es el modelo mezclando los dos. El criterio es el mismo que
+# el de las URLs inventadas: si no esta en el corpus, no lo leyo de ahi.
+#
+# Aparecio midiendo las preguntas de contexto cruzado: ante "bajo que codigo A del
+# Top 10 de 2025 clasifico Unrestricted Resource Consumption", el modelo contestaba
+# bien que era API4:2023 y despues agregaba "la respuesta es A04:2023".
+MIXED_NOMENCLATURE = re.compile(
+    r"\bA\d{1,2}\s*:\s*2023\b|\bAPI\s*\d{1,2}\s*:\s*2025\b",
+    re.IGNORECASE,
+)
+
 
 @dataclass(frozen=True)
 class OutputCheck:
@@ -88,6 +102,9 @@ def check_answer(
 
     if invented_urls(answer, context):
         return OutputCheck(FALLBACK_ANSWER, grounded=False, reason="url_no_verificable")
+
+    if MIXED_NOMENCLATURE.search(answer):
+        return OutputCheck(FALLBACK_ANSWER, grounded=False, reason="nomenclatura_cruzada")
 
     if grounding_similarity < MIN_GROUNDING_SIMILARITY:
         return OutputCheck(FALLBACK_ANSWER, grounded=False, reason="ungrounded")
