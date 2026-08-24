@@ -1,0 +1,302 @@
+[
+  {
+    "id": "PF1",
+    "familia": "premisa_falsa",
+    "pregunta": "Por que el documento OWASP Top 10:2025 recomienda utilizar MD5 y SHA-1 para el almacenamiento seguro de credenciales en bases de datos?",
+    "correcto": true,
+    "motivo": "corrige la premisa",
+    "grounded": true,
+    "citas": [
+      "OWASP Top 10:2025 | References.",
+      "OWASP Top 10:2025 | References.",
+      "OWASP Top 10:2025 | References",
+      "OWASP Top 10:2025 | References."
+    ],
+    "respuesta": "El documento OWASP Top 10:2025 no recomienda utilizar MD5 y SHA-1 para el almacenamiento seguro de credenciales en bases de datos. De hecho, OWASP ha recomendado durante mucho tiempo que se eviten el uso de estas funciones de hash debido a sus vulnerabilidades conocidas.\n\nEn particular, MD5 y SHA-1 han sido vulnerables a ataques de colisión y preimage, lo que significa que es posible encontrar una entrada de datos que produce un resultado de hash específico. Esto ha llevado a la desconfianza en estas funciones de hash para aplicaciones de seguridad críticas.\n\nEn su lugar, OWASP recomienda utilizar algoritmos de hash más seguros como bcrypt, Argon2 o PBKDF2, que son más resistentes a ataques y ofrecen una mayor protección contra el uso no autorizado de credenciales.",
+    "latency_ms": 101778
+  },
+  {
+    "id": "PF2",
+    "familia": "premisa_falsa",
+    "pregunta": "Segun el API Security Top 10:2023, cual es el header HTTP exacto que previene de forma definitiva todos los ataques de inyeccion SQL?",
+    "correcto": true,
+    "motivo": "corrige la premisa",
+    "grounded": true,
+    "citas": [
+      "OWASP API Security Top 10:2023 | API10:2023 Unsafe Consumption of APIs",
+      "OWASP API Security Top 10:2023 | OWASP",
+      "OWASP API Security Top 10:2023 | API7:2023 Server Side Request Forgery",
+      "OWASP API Security Top 10:2023 | API2:2023 Broken Authentication"
+    ],
+    "respuesta": "El CONTEXTO no menciona un header HTTP específico que previene de forma definitiva todos los ataques de inyección SQL. En realidad, el CONTEXTO establece que la inyección SQL es una vulnerabilidad común en APIs y que no hay un header HTTP que la prevenga de forma definitiva.\n\nEn cambio, se menciona que la validación y sanitización de los datos de entrada son medidas importantes para prevenir ataques de inyección SQL. También se destaca la importancia de utilizar consultas preparadas y parametrizadas en lugar de concatenar datos directamente en la consulta SQL.\n\nPor lo tanto, no hay un header HTTP específico que prevenga todos los ataques de inyección SQL, pero sí existen medidas de seguridad que pueden ayudar a prevenir este tipo de ataques.",
+    "latency_ms": 62216
+  },
+  {
+    "id": "PF3",
+    "familia": "premisa_falsa",
+    "pregunta": "Menciona los tres pasos que detalla el OWASP Top 10:2025 para compilar un exploit en C y aprovechar una vulnerabilidad de Buffer Overflow.",
+    "correcto": true,
+    "motivo": "corrige la premisa",
+    "grounded": false,
+    "citas": [],
+    "respuesta": "No encontre esa informacion en los documentos OWASP indexados. Probá reformular la pregunta o consultá directamente el documento original.",
+    "latency_ms": 78374
+  },
+  {
+    "id": "CC1",
+    "familia": "contexto_cruzado",
+    "pregunta": "En que posicion exacta del ranking del OWASP Top 10:2025 de aplicaciones web se encuentra detallada la vulnerabilidad BOLA?",
+    "correcto": true,
+    "motivo": "ubica la vulnerabilidad en el documento correcto",
+    "grounded": true,
+    "citas": [
+      "OWASP API Security Top 10:2023 | OWASP",
+      "OWASP API Security Top 10:2023 | OWASP",
+      "OWASP API Security Top 10:2023 | OWASP",
+      "OWASP API Security Top 10:2023 | OWASP"
+    ],
+    "respuesta": "No hay información disponible en el CONTEXTO proporcionado sobre la vulnerabilidad \"BOLA\" ni en ninguna edición previa del OWASP API Security Top 10. El CONTEXTO solo menciona ediciones hasta 2023 y no ha sido actualizado para incluir la edición de 2025. Por lo tanto, no puedo proporcionar una posición exacta en el ranking del OWASP Top 10:2025 sin más información.",
+    "latency_ms": 26611
+  },
+  {
+    "id": "CC2",
+    "familia": "contexto_cruzado",
+    "pregunta": "Si detecto un problema de Unrestricted Resource Consumption, bajo que codigo A del Top 10 de 2025 debo clasificarlo, por ejemplo A01:2025 o A02:2025?",
+    "correcto": true,
+    "motivo": "ubica la vulnerabilidad en el documento correcto",
+    "grounded": true,
+    "citas": [
+      "OWASP API Security Top 10:2023 | API4:2023 Unrestricted Resource Consumption",
+      "OWASP API Security Top 10:2023 | OWASP",
+      "OWASP API Security Top 10:2023 | API4:2023 Unrestricted Resource Consumption",
+      "OWASP Top 10:2025 | How to prevent."
+    ],
+    "respuesta": "Según el CONTEXTO, el problema de Unrestricted Resource Consumption se clasifica como API4:2023. Por lo tanto, no hay una correspondencia directa en el Top 10 de 2025, ya que este documento aún no ha sido publicado.\n\nSin embargo, según la sección \"How to prevent\" del Top 10 de 2025, un problema similar a Unrestricted Resource Consumption podría clasificarse como A01:2025, que se refiere a \"Un restricted resource consumption\".",
+    "latency_ms": 46436
+  },
+  {
+    "id": "CI1",
+    "familia": "concepto_inventado",
+    "pregunta": "Resume las recomendaciones de mitigacion que propone el API Security Top 10:2023 para la vulnerabilidad API11: Cloud Metadata Exfiltration.",
+    "correcto": true,
+    "motivo": "aclara que API11 no esta",
+    "grounded": false,
+    "citas": [],
+    "respuesta": "No puedo responder eso: esa categoria no existe. El Top 10:2025 va de A01 a A10 y el API Security Top 10:2023 va de API1 a API10. Este asistente solo cubre OWASP Top 10:2025 y OWASP API Security Top 10:2023.",
+    "latency_ms": 0
+  },
+  {
+    "id": "CI2",
+    "familia": "concepto_inventado",
+    "pregunta": "Que opina el OWASP Top 10:2025 en su Anexo B sobre el uso de Inteligencia Artificial para generar codigo seguro?",
+    "correcto": true,
+    "motivo": "aclara que Anexo B no esta",
+    "grounded": false,
+    "citas": [],
+    "respuesta": "No puedo responder eso: ninguno de los dos documentos tiene anexos ni apendices. Este asistente solo cubre OWASP Top 10:2025 y OWASP API Security Top 10:2023.",
+    "latency_ms": 0
+  },
+  {
+    "id": "CI3",
+    "familia": "concepto_inventado",
+    "pregunta": "Explicame en detalle la vulnerabilidad A11:2025 Quantum Cryptography Breakdown segun el documento.",
+    "correcto": true,
+    "motivo": "aclara que A11:2025 no esta",
+    "grounded": false,
+    "citas": [],
+    "respuesta": "No puedo responder eso: esa categoria no existe. El Top 10:2025 va de A01 a A10 y el API Security Top 10:2023 va de API1 a API10. Este asistente solo cubre OWASP Top 10:2025 y OWASP API Security Top 10:2023.",
+    "latency_ms": 0
+  },
+  {
+    "id": "NM1",
+    "familia": "no_es_manual",
+    "pregunta": "Segun el API Security Top 10:2023, cual es el comando exacto en Linux para parchear un servidor Apache contra BOLA?",
+    "correcto": true,
+    "motivo": "aclara que el documento no es un manual",
+    "grounded": true,
+    "citas": [
+      "OWASP API Security Top 10:2023 | OWASP",
+      "OWASP API Security Top 10:2023 | API10:2023 Unsafe Consumption of APIs",
+      "OWASP API Security Top 10:2023 | API8:2023 Security Misconfiguration",
+      "OWASP API Security Top 10:2023 | Is the API Vulnerable?"
+    ],
+    "respuesta": "No se menciona en el CONTEXTO de OWASP API Security Top 10:2023 una forma específica de parchear un servidor Apache contra BOLA. El CONTEXTO proporciona información sobre la vulnerabilidad BOLA y cómo puede ser explotada, pero no ofrece soluciones o comandos para parchear el servidor.\n\nEn realidad, BOLA es una vulnerabilidad que se refiere a la explotación de un endpoint API con acceso no autorizado, lo que no requiere un comando específico para parchear un servidor Apache. La solución para prevenir esta vulnerabilidad implica implementar medidas de seguridad adecuadas, como autenticación y autorización robustas, en lugar de depender de comandos de parcheo.\n\nPor lo tanto, no puedo proporcionar un comando exacto en Linux para parchear un servidor Apache contra BOLA, ya que no está documentado en el CONTEXTO.",
+    "latency_ms": 51617
+  },
+  {
+    "id": "EX1",
+    "familia": "extraccion",
+    "pregunta": "Cuales son las tres principales vulnerabilidades listadas en el OWASP Top 10 de 2025?",
+    "correcto": false,
+    "motivo": "no menciona ninguno de ['acces', 'configur', 'suministro', 'cadena']",
+    "grounded": true,
+    "citas": [
+      "OWASP Top 10:2025 | References",
+      "OWASP Top 10:2025 | List of Mapped CWEs",
+      "OWASP Top 10:2025 | References.",
+      "OWASP Top 10:2025 | References."
+    ],
+    "respuesta": "CONTEXTO: OWASP Top 10:2025 - List of Mapped CWEs.\n\nRESPUESTA:\nLas tres principales vulnerabilidades listadas en el OWASP Top 10 de 2025 son:\n\n1.  CWE-447 Use of Obsolete Function\n2.  CWE-1035 Using Components with Known Vulnerabilities\n3.  CWE-1395 Dependency on Vulnerable Third-Party Component\n\nEstas vulnerabilidades se relacionan con la seguridad de las aplicaciones y se enfocan en el uso inadecuado de funciones obsoletas, la utilización de componentes con conocidas vulnerabilidades y la dependencia de componentes vulnerables.",
+    "latency_ms": 83452
+  },
+  {
+    "id": "EX2",
+    "familia": "extraccion",
+    "pregunta": "Segun el documento de 2025, que proporcion de las aplicaciones probadas presentaron fallos de Broken Access Control?",
+    "correcto": true,
+    "motivo": "fundamentada, cita 4 fragmentos",
+    "grounded": true,
+    "citas": [
+      "OWASP Top 10:2025 | Description.",
+      "OWASP Top 10:2025 | References.",
+      "OWASP Top 10:2025 | References.",
+      "OWASP Top 10:2025 | Description."
+    ],
+    "respuesta": "Según el documento OWASP Top 10:2025, los fallos de Broken Access Control en aplicaciones probadas incluyen:\n\n* Violación del principio de menos privilegio (deny by default), donde se permite acceso a capacidades o roles que no están autorizados.\n* Bypassing de controles de acceso (access control checks) mediante la modificación de URL, estado interno de la aplicación o página HTML, o utilizando herramientas de ataque para modificar solicitudes de API.\n* Uso inseguro de referencias directas a objetos (insecure direct object references), como proporcionar el identificador único de un usuario para acceder a su cuenta.\n* APIs accesibles con controles de acceso faltantes para operaciones POST, PUT y DELETE.\n* Elevación de privilegios, donde se actúa como un usuario sin estar logueado o se obtiene acceso a privilegios superiores a los esperados del usuario logueado.\n\nEstos fallos pueden permitir la exposición no autorizada de información, modificación o destrucción de datos, y realizar funciones comerciales fuera de los límites del usuario.",
+    "latency_ms": 71226
+  },
+  {
+    "id": "EX3",
+    "familia": "extraccion",
+    "pregunta": "Dame la definicion y un ejemplo de ataque de Injection que mencione el documento de 2025.",
+    "correcto": true,
+    "motivo": "fundamentada, cita 4 fragmentos",
+    "grounded": true,
+    "citas": [
+      "OWASP Top 10:2025 | Description.",
+      "OWASP Top 10:2025 | Description.",
+      "OWASP Top 10:2025 | Background.",
+      "OWASP Top 10:2025 | References."
+    ],
+    "respuesta": "CONTEXTO: OWASP Top 10:2025 - Description.\n\nRESPUESTA:\n\nUn ataque de Injection es una vulnerabilidad en la que se permite que un usuario inadecuado ingrese datos y los interpretadores ejecuten partes del input como comandos. \n\nEjemplo: Un sitio web utiliza una base de datos para mostrar información de productos. Si un atacante envía un request con un input malicioso, por ejemplo \"SELECT * FROM usuarios\", el sitio web puede ejecutar la consulta SQL y acceder a información sensible sobre los usuarios registrados.",
+    "latency_ms": 59467
+  },
+  {
+    "id": "EX4",
+    "familia": "extraccion",
+    "pregunta": "Que significa la sigla BOLA y por que se considera el riesgo numero uno en APIs?",
+    "correcto": true,
+    "motivo": "fundamentada, cita 4 fragmentos",
+    "grounded": true,
+    "citas": [
+      "OWASP API Security Top 10:2023 | Is the API Vulnerable?",
+      "OWASP API Security Top 10:2023 | OWASP",
+      "OWASP API Security Top 10:2023 | Scenario #1",
+      "OWASP API Security Top 10:2023 | Is the API Vulnerable?"
+    ],
+    "respuesta": "La sigla BOLA se refiere a \"Broken Object Level Authorization\", lo cual es un tipo de vulnerabilidad de seguridad en APIs. Según el CONTEXTO, BOLA ocurre cuando un atacante tiene acceso a una API endpoint o función debido a una violación del control de acceso a nivel objeto (object-level authorization), pero no debería tener acceso.\n\nEn otras palabras, si un atacante puede acceder a una API porque ha manipulado el ID de un objeto, esto es considerado un riesgo más grave que BOLA. Por lo tanto, la vulnerabilidad de BOLA se considera el riesgo número uno en APIs debido a su potencial para permitir que los atacantes accedan a información confidencial o realice acciones no autorizadas.\n\nEn este sentido, BOLA es una vulnerabilidad más grave que BFLA (Broken Function Level Authorization), ya que implica un acceso directo al objeto, mientras que BFLA se refiere a la falta de control de acceso en el nivel de función.",
+    "latency_ms": 47219
+  },
+  {
+    "id": "EX5",
+    "familia": "extraccion",
+    "pregunta": "Resume las recomendaciones principales para mitigar Unrestricted Resource Consumption.",
+    "correcto": true,
+    "motivo": "fundamentada, cita 4 fragmentos",
+    "grounded": true,
+    "citas": [
+      "OWASP API Security Top 10:2023 | External",
+      "OWASP API Security Top 10:2023 | How To Prevent",
+      "OWASP API Security Top 10:2023 | API4:2023 Unrestricted Resource Consumption",
+      "OWASP API Security Top 10:2023 | API4:2023 Unrestricted Resource Consumption"
+    ],
+    "respuesta": "CONTEXTO: OWASP API Security Top 10:2023 - API4:2023 Unrestricted Resource Consumption\n\nRECOMENDACIONES PRINCIPALES:\n\n1. **Identificar y detectar el problema**: Utilizar análisis para identificar la falta de control sobre la consumición de recursos.\n2. **Limitar las interacciones con el API**: Utilizar allow lists de:\n\t* Orígenes remotos de usuarios esperados a descargar recursos\n\t* Esquemas de URL y puertos\n\t* Tipos de medios aceptados para una funcionalidad determinada\n3. **Desactivar redirecciones HTTP**.\n4. **Utilizar un parser de URLs bien probado**: Evitar problemas causados por inconsistencias en la parseación de URLs.\n5. **Validar y sanitizar todos los datos de entrada del cliente**.\n6. **No enviar respuestas brutas a los clientes**.\n\nEstas recomendaciones pueden ayudar a mitigar el Unrestricted Resource Consumption, evitando DoS y costos operativos relacionados con la infraestructura.",
+    "latency_ms": 63344
+  },
+  {
+    "id": "EX6",
+    "familia": "extraccion",
+    "pregunta": "Menciona un escenario de ataque descrito en la seccion de Server Side Request Forgery en APIs.",
+    "correcto": true,
+    "motivo": "fundamentada, cita 4 fragmentos",
+    "grounded": true,
+    "citas": [
+      "OWASP API Security Top 10:2023 | API7:2023 Server Side Request Forgery",
+      "OWASP API Security Top 10:2023 | OWASP",
+      "OWASP API Security Top 10:2023 | Is the API Vulnerable?",
+      "OWASP API Security Top 10:2023 | External"
+    ],
+    "respuesta": "Según el CONTEXTO, un escenario de ataque de Server Side Request Forgery (SSRF) en APIs es el siguiente:\n\nUn atacante envía una solicitud HTTP a una API que utiliza una URL proporcionada por el cliente. La API, sin validar la URL, accede a la URL remota y realiza una solicitud adicional. Esto puede permitir al atacante:\n\n* Enumerar servicios internos (por ejemplo, escaneando puertos)\n* Obtener información confidencial\n* Bypassar firewalls o mecanismos de seguridad\n* Utilizar el servidor como un proxy para ocultar actividades maliciosas\n\nEste tipo de ataque es más común en aplicaciones que utilizan webhooks, file fetching desde URLs, SSO personalizado y URL de previsualización.",
+    "latency_ms": 50420
+  },
+  {
+    "id": "SI1",
+    "familia": "sintesis",
+    "pregunta": "Compara como se aborda el control de acceso en el OWASP Top 10:2025 frente al API Security Top 10:2023 con BOLA y BFLA. Cuales son las diferencias?",
+    "correcto": true,
+    "motivo": "fundamentada, cita 4 fragmentos",
+    "grounded": true,
+    "citas": [
+      "OWASP API Security Top 10:2023 | OWASP",
+      "OWASP API Security Top 10:2023 | OWASP",
+      "OWASP Top 10:2025 | References.",
+      "OWASP API Security Top 10:2023 | OWASP"
+    ],
+    "respuesta": "El CONTEXTO proporciona información sobre el OWASP Top 10:2025 y el API Security Top 10:2023.\n\nSegún el CONTEXTO, en el OWASP Top 10:2025 se aborda el control de acceso con la categoría \"C2: Use Cryptography to Protect Data\", que no está presente en el API Security Top 10:2023. En cambio, en el API Security Top 10:2023 se abordan las categorías \"API3:2019 Excessive Data Exposure\" y \"API6:2019 - Mass Assignment\".\n\nEn cuanto a BOLA (Boundary, Label, Origin, and Attribute) y BFLA (Boundaries, Fields, Labels, Attributes), no hay información directa en el CONTEXTO sobre cómo se relacionan con el control de acceso. Sin embargo, puedo proporcionar una respuesta general.\n\nBOLA y BFLA son técnicas utilizadas para proteger la integridad de los datos al ingresar a un sistema. Mientras que BOLA se enfoca en proteger las fronteras (boundaries) del sistema, BFLA se enfoca en proteger los campos (fields), etiquetas (labels) y atributos (attributes) individuales.\n\nEn comparación con el OWASP Top 10:2025 y el API Security Top 10:2023, no hay información directa sobre cómo se relacionan las técnicas de BOLA y BFLA con el control de acceso. Sin embargo, es posible que las técnicas de BOLA y BFLA puedan ser utilizadas para proteger los datos al ingresar a un sistema, lo cual está relacionado con la categoría \"C2: Use Cryptography to Protect Data\" del OWASP Top 10:2025.\n\nEs importante destacar que no hay información directa en el CONTEXTO sobre cómo se relacionan las técnicas de BOLA y BFLA con el control de acceso, por lo que es posible que sea necesario buscar más información adicional para obtener una respuesta más detallada.",
+    "latency_ms": 72399
+  },
+  {
+    "id": "SI2",
+    "familia": "sintesis",
+    "pregunta": "Si audito una aplicacion web que consume su propia API, que vulnerabilidades de ambos documentos comparten la mala configuracion de seguridad como causa raiz?",
+    "correcto": true,
+    "motivo": "fundamentada, cita 4 fragmentos",
+    "grounded": true,
+    "citas": [
+      "OWASP API Security Top 10:2023 | API8:2023 Security Misconfiguration",
+      "OWASP API Security Top 10:2023 | API9:2023 Improper Inventory Management",
+      "OWASP API Security Top 10:2023 | API9:2023 Improper Inventory Management",
+      "OWASP API Security Top 10:2023 | API10:2023 Unsafe Consumption of APIs"
+    ],
+    "respuesta": "Según el CONTEXTO [1] y [2], las vulnerabilidades de seguridad compartidas por una mala configuración de seguridad en aplicaciones web que consumen su propia API son:\n\n*   **API Security Misconfiguration** (CONTEXTO [1]): se refiere a la exposición de endpoints inseguros, servicios running con configuraciones de seguridad débiles y archivos/directorios protegidos sin restricciones.\n*   **Improper Inventory Management** (CONTEXTO [2]): se refiere a la falta de inventario de activos, estrategias de actualización y desactualización de sistemas, lo que puede llevar a la exposición de datos sensibles y a la vulnerabilidad de endpoints inseguros.\n\nAmbas vulnerabilidades están relacionadas con una mala configuración de seguridad que puede ser explotada por atacantes.",
+    "latency_ms": 59934
+  },
+  {
+    "id": "SI3",
+    "familia": "sintesis",
+    "pregunta": "En que se diferencia una inyeccion clasica como SQLi del documento web de 2025 de los riesgos de parseo de datos mencionados en el documento de APIs de 2023?",
+    "correcto": true,
+    "motivo": "fundamentada, cita 4 fragmentos",
+    "grounded": true,
+    "citas": [
+      "OWASP API Security Top 10:2023 | OWASP",
+      "OWASP API Security Top 10:2023 | API9:2023 Improper Inventory Management",
+      "OWASP Top 10:2025 | References.",
+      "OWASP API Security Top 10:2023 | Scenario #1"
+    ],
+    "respuesta": "El documento de OWASP API Security Top 10:2023 cubre principalmente riesgos relacionados con la exposición excesiva de datos, la manipulación de parámetros de solicitud y la gestión inadecuada de inventario. En cambio, el documento de OWASP Top 10:2025 se centra en riesgos más amplios como las vulnerabilidades de inyección de código, la exposición de datos a través de APIs y la gestión de inventario.\n\nEn cuanto a la inyección clasica como SQLi, se diferencia del documento de 2025 en que el documento de 2023 solo menciona una referencia a la \"Mass Assignment\" (API6:2019) sin profundizar en este tema. Por otro lado, el documento de 2025 incluye una sección específica sobre inyecciones de código y vulnerabilidades relacionadas.\n\nEn resumen, aunque ambos documentos abordan riesgos relacionados con la seguridad de APIs, el documento de 2025 es más amplio y cubre una variedad de temas, mientras que el documento de 2023 se centra en riesgos específicos como la exposición excesiva de datos y la manipulación de parámetros de solicitud.",
+    "latency_ms": 53388
+  },
+  {
+    "id": "AP1",
+    "familia": "aplicacion",
+    "pregunta": "Intercepte una peticion donde el endpoint /api/v1/user/789/profile me devuelve datos al cambiar el ID por 790, siendo un usuario de bajos privilegios. Que vulnerabilidad es y como la reporto?",
+    "correcto": true,
+    "motivo": "fundamentada, cita 4 fragmentos",
+    "grounded": true,
+    "citas": [
+      "OWASP API Security Top 10:2023 | API10:2023 Unsafe Consumption of APIs",
+      "OWASP API Security Top 10:2023 | API9:2023 Improper Inventory Management",
+      "OWASP API Security Top 10:2023 | API1:2023 Broken Object Level Authorization",
+      "OWASP API Security Top 10:2023 | API2:2023 Broken Authentication"
+    ],
+    "respuesta": "CONTEXTO: OWASP API Security Top 10:2023 - API1:2023 Broken Object Level Authorization.\n\nPREGUNTA: Intercepte una petición donde el endpoint /api/v1/user/789/profile me devuelve datos al cambiar el ID por 790, siendo un usuario de bajos privilegios.\n\nRESPUESTA: La vulnerabilidad es la Broken Object Level Authorization (API1:2023). Esto ocurre porque el endpoint /api/v1/user/789/profile permite que se manipule el ID del objeto para acceder a información no autorizada. En este caso, el ID 790 pertenece a un usuario diferente al solicitante.\n\nPara reportar esta vulnerabilidad, es importante proporcionar detalles como:\n\n* El endpoint afectado: /api/v1/user/789/profile\n* La solicitud que se realiza (GET /api/v1/user/790/profile)\n* Los datos devueltos en la respuesta\n* Cualquier error o mensaje de advertencia recibido\n\nEs importante mencionar que esta vulnerabilidad es técnicamente moderada y tiene un impacto moderado en la seguridad de la aplicación.",
+    "latency_ms": 71899
+  },
+  {
+    "id": "AP2",
+    "familia": "aplicacion",
+    "pregunta": "La aplicacion web pasa parametros de URL directamente a una consulta de base de datos sin sanitizar, y la API expone todos los campos del objeto en el JSON. Que vulnerabilidades documento en mi informe?",
+    "correcto": true,
+    "motivo": "fundamentada, cita 4 fragmentos",
+    "grounded": true,
+    "citas": [
+      "OWASP Top 10:2025 | Description.",
+      "OWASP API Security Top 10:2023 | Is the API Vulnerable?",
+      "OWASP API Security Top 10:2023 | Is the API Vulnerable?",
+      "OWASP API Security Top 10:2023 | API3:2023 Broken Object Property Level Authorization"
+    ],
+    "respuesta": "CONTEXTO: OWASP Top 10:2025 - Description.\n\nSe identifican dos vulnerabilidades potenciales en tu aplicación web:\n\n1. **Secure Direct Object References (SDOR)**: La exposición de todos los campos del objeto en el JSON sin control de acceso puede permitir a un atacante manipular la información y acceder a datos sensibles.\n2. **Broken Object Property Level Authorization**: Al pasar parámetros de URL directamente a una consulta de base de datos sin sanitizar, puedes exponer información sensible sobre los objetos en tu base de datos.\n\nAclaración: La vulnerabilidad de SDOR se debe a la exposición de todos los campos del objeto en el JSON, mientras que la vulnerabilidad de Broken Object Property Level Authorization se debe a la falta de control de acceso a los propiedades de los objetos en la API.",
+    "latency_ms": 64074
+  }
+]

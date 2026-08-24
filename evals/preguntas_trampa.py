@@ -237,6 +237,10 @@ CASOS = [
     # NORMAL 1: recuperacion directa
     # ------------------------------------------------------------------
     {
+        # Este caso falla, y lo que expone es el corpus: ningun archivo lista las diez
+        # categorias juntas, el ranking existe en los titulos y no en el texto. La
+        # recuperacion trae el fragmento de CWEs mapeados y la respuesta enumera CWEs.
+        # Se deja adentro justamente para que la limitacion quede medida.
         "id": "EX1",
         "familia": "extraccion",
         "source": "web",
