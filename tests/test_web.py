@@ -11,7 +11,13 @@ def test_la_raiz_sirve_la_interfaz(client):
 
 
 def test_los_assets_se_sirven_desde_el_mismo_origen(client):
-    for ruta, tipo in (("/assets/app.js", "javascript"), ("/assets/styles.css", "css")):
+    assets = (
+        ("/assets/app.js", "javascript"),
+        ("/assets/theme.js", "javascript"),
+        ("/assets/styles.css", "css"),
+        ("/assets/favicon.svg", "svg"),
+    )
+    for ruta, tipo in assets:
         response = client.get(ruta)
         assert response.status_code == 200, ruta
         assert tipo in response.headers["content-type"], ruta
@@ -43,3 +49,25 @@ def test_swagger_queda_exento_de_la_csp(client):
 def test_la_api_tambien_responde_con_la_politica(client):
     """La CSP no es solo de la pagina: aplica a cualquier respuesta que no sea Swagger."""
     assert "Content-Security-Policy" in client.get("/health").headers
+
+
+def test_los_bloques_ocultos_no_se_muestran(client):
+    """Una clase con display propio le gana a [hidden]: el loading quedaba pegado."""
+    css = client.get("/assets/styles.css").text
+    assert "[hidden]" in css
+    assert "display: none !important" in css
+
+
+def test_estan_definidos_los_dos_temas(client):
+    css = client.get("/assets/styles.css").text
+    # Preferencia del sistema, y las dos elecciones manuales que tienen que pisarla.
+    assert "prefers-color-scheme: dark" in css
+    assert ':root:not([data-tema="claro"])' in css
+    assert ':root[data-tema="oscuro"]' in css
+
+
+def test_el_tema_se_aplica_antes_del_primer_pintado(client):
+    """Sin esto se ve un destello del tema equivocado en cada carga."""
+    html = client.get("/").text
+    assert '<script src="/assets/theme.js"></script>' in html
+    assert html.index("theme.js") < html.index("</head>")

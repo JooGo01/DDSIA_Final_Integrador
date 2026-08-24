@@ -4,18 +4,59 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="light dark">
   <title>OWASP RAG Assistant</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/styles.css">
+  <!-- Sin defer y antes del CSS del body: aplica el tema guardado antes del primer
+       pintado, que es lo que evita el destello del tema equivocado. -->
+  <script src="/assets/theme.js"></script>
 </head>
 <body>
   <header class="barra">
     <div class="marca">
-      <h1>OWASP RAG Assistant</h1>
-      <p class="subtitulo">Top 10:2025 y API Security Top 10:2023</p>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3l7 3v5.5c0 4.3-2.9 8.2-7 9.5-4.1-1.3-7-5.2-7-9.5V6l7-3z"></path>
+        <path d="M9.2 11.8l2 2 3.6-3.6"></path>
+      </svg>
+      <div>
+        <h1>OWASP RAG Assistant</h1>
+        <p class="subtitulo">Top 10:2025 y API Security Top 10:2023</p>
+      </div>
     </div>
-    <div class="estado-servicio">
-      <span id="estado-pill" class="pill pill-neutro" aria-live="polite">consultando…</span>
-      <span id="estado-detalle" class="detalle-estado"></span>
+
+    <div class="controles-barra">
+      <div class="estado">
+        <span id="estado-pill" class="pill" aria-live="polite">consultando</span>
+        <span id="estado-detalle" class="detalle"></span>
+      </div>
+
+      <div class="selector-tema" role="group" aria-label="Tema de la interfaz">
+        <button type="button" id="tema-auto" data-tema-valor="auto" title="Seguir al sistema" aria-pressed="false">
+          <span class="sr-only">Automatico</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" aria-hidden="true">
+            <rect x="2" y="4" width="20" height="13" rx="2"></rect>
+            <path d="M8 21h8"></path>
+          </svg>
+        </button>
+        <button type="button" id="tema-claro" data-tema-valor="claro" title="Tema claro" aria-pressed="false">
+          <span class="sr-only">Claro</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+          </svg>
+        </button>
+        <button type="button" id="tema-oscuro" data-tema-valor="oscuro" title="Tema oscuro" aria-pressed="false">
+          <span class="sr-only">Oscuro</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 14.5A8.5 8.5 0 019.5 4 8.5 8.5 0 1020 14.5z"></path>
+          </svg>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -27,7 +68,7 @@
         Las credenciales de demostracion estan en el README del repositorio.
         El token se guarda solo en memoria: si recargas la pagina hay que volver a entrar.
       </p>
-      <form id="form-login" autocomplete="on">
+      <form id="form-login">
         <div class="campo">
           <label for="usuario">Usuario</label>
           <input id="usuario" name="usuario" type="text" autocomplete="username"
@@ -37,20 +78,23 @@
           <label for="clave">Contrasena</label>
           <input id="clave" name="clave" type="password" autocomplete="current-password" required>
         </div>
-        <button id="boton-login" type="submit" class="primario">Ingresar</button>
+        <div class="fila">
+          <span></span>
+          <button id="boton-login" type="submit" class="primario">Ingresar</button>
+        </div>
       </form>
-      <p id="error-login" class="error" role="alert" hidden></p>
+      <p id="error-login" class="aviso aviso-error" role="alert" hidden></p>
     </section>
 
     <!-- Sesion iniciada -->
-    <section id="seccion-sesion" class="tarjeta tarjeta-sesion" hidden>
+    <section id="seccion-sesion" class="tarjeta tarjeta-sesion" hidden aria-label="Sesion">
       <div class="sesion-datos">
-        <span class="etiqueta">Sesion</span>
-        <strong id="sesion-usuario"></strong>
-        <span id="sesion-scopes" class="scopes"></span>
+        <span id="sesion-avatar" class="avatar" aria-hidden="true"></span>
+        <span id="sesion-usuario" class="sesion-usuario"></span>
+        <span id="sesion-scopes" class="mono"></span>
       </div>
       <div class="sesion-acciones">
-        <span id="sesion-vence" class="detalle-estado" title="Tiempo que le queda al token"></span>
+        <span id="sesion-vence" class="mono" title="Tiempo que le queda al token"></span>
         <button id="boton-salir" type="button" class="secundario">Salir</button>
       </div>
     </section>
@@ -58,6 +102,10 @@
     <!-- Consulta -->
     <section id="seccion-consulta" class="tarjeta" hidden>
       <h2>Preguntar</h2>
+      <p class="ayuda">
+        Solo se responde con lo que este en los dos documentos indexados. Si el contexto
+        no alcanza, el asistente lo dice en lugar de inventar.
+      </p>
       <form id="form-consulta">
         <div class="campo">
           <label for="pregunta">Pregunta</label>
@@ -65,8 +113,8 @@
                     placeholder="Que controles previenen Broken Object Level Authorization?"
                     minlength="8" maxlength="600" required></textarea>
           <div class="pie-campo">
-            <span id="contador" class="detalle-estado">0 / 600</span>
-            <span class="detalle-estado">Entre 8 y 600 caracteres</span>
+            <span id="contador">0 / 600</span>
+            <span>Entre 8 y 600 caracteres. Ctrl+Enter para enviar.</span>
           </div>
         </div>
         <div class="fila">
@@ -81,11 +129,12 @@
           <button id="boton-preguntar" type="submit" class="primario">Preguntar</button>
         </div>
       </form>
-      <p id="error-consulta" class="error" role="alert" hidden></p>
+      <p id="error-consulta" class="aviso aviso-error" role="alert" hidden></p>
       <div id="cargando" class="cargando" hidden aria-live="polite">
         <span class="spinner" aria-hidden="true"></span>
-        <span>Recuperando fragmentos y generando la respuesta… <span id="cronometro">0 s</span></span>
-        <span class="detalle-estado">El modelo corre local: la primera consulta puede tardar bastante.</span>
+        <span>Recuperando fragmentos y generando la respuesta</span>
+        <span id="cronometro" class="cronometro">0 s</span>
+        <span class="cargando-nota">El modelo corre local: la primera consulta puede tardar cerca de un minuto.</span>
       </div>
     </section>
 
@@ -93,11 +142,11 @@
     <section id="seccion-respuesta" class="tarjeta" hidden aria-live="polite">
       <div class="encabezado-respuesta">
         <h2>Respuesta</h2>
-        <span id="pill-fundamentada" class="pill"></span>
+        <span id="pill-fundamentada" class="pill pill-plana"></span>
       </div>
       <p id="texto-respuesta" class="respuesta"></p>
       <div id="bloque-citas">
-        <h3>Citas</h3>
+        <h3>Fragmentos citados</h3>
         <ul id="lista-citas" class="citas"></ul>
       </div>
       <dl id="metricas" class="metricas"></dl>
@@ -117,16 +166,16 @@
         </label>
         <button id="boton-reindexar" type="button" class="secundario">Reindexar</button>
       </div>
-      <p id="error-admin" class="error" role="alert" hidden></p>
-      <p id="resultado-admin" class="ok" role="status" hidden></p>
+      <p id="error-admin" class="aviso aviso-error" role="alert" hidden></p>
+      <p id="resultado-admin" class="aviso aviso-ok" role="status" hidden></p>
     </section>
   </main>
 
   <footer>
     <a href="/docs">Swagger</a>
-    <span aria-hidden="true">·</span>
+    <span aria-hidden="true">/</span>
     <a href="/health">Health</a>
-    <span aria-hidden="true">·</span>
+    <span aria-hidden="true">/</span>
     <a href="/metrics">Metricas</a>
   </footer>
 

@@ -5,6 +5,7 @@
 // 1. El token vive en una variable de este modulo y en ningun otro lado. No va a
 //    localStorage ni a sessionStorage ni a una cookie: si alguna vez se cuela un XSS,
 //    ahi no hay nada que robar, y al recargar la pagina hay que volver a autenticarse.
+//    Lo unico que si se guarda es la preferencia de tema, que no es un secreto.
 // 2. Todo lo que llega del servidor se escribe con textContent, nunca con innerHTML.
 //    La respuesta la redacta un modelo sobre documentos que pueden traer HTML, asi que
 //    se trata como texto. La CSP del servidor es la segunda barrera, no la unica.
@@ -12,8 +13,9 @@
 (function () {
   "use strict";
 
+  var CLAVE_TEMA = "owasp-rag-tema";
+
   var token = null;
-  var usuario = null;
   var scopes = [];
   var venceEn = 0; // epoch en milisegundos
   var relojSesion = null;
@@ -21,6 +23,33 @@
   var relojEstado = null;
 
   var el = function (id) { return document.getElementById(id); };
+
+  // --- Tema ---
+
+  function aplicarTema(valor) {
+    if (valor === "auto") {
+      document.documentElement.removeAttribute("data-tema");
+    } else {
+      document.documentElement.setAttribute("data-tema", valor);
+    }
+    ["auto", "claro", "oscuro"].forEach(function (opcion) {
+      el("tema-" + opcion).setAttribute("aria-pressed", String(opcion === valor));
+    });
+    try {
+      localStorage.setItem(CLAVE_TEMA, valor);
+    } catch (e) {
+      // Almacenamiento bloqueado: el tema vale para esta pestana y nada mas.
+    }
+  }
+
+  function temaGuardado() {
+    try {
+      var valor = localStorage.getItem(CLAVE_TEMA);
+      return valor === "claro" || valor === "oscuro" ? valor : "auto";
+    } catch (e) {
+      return "auto";
+    }
+  }
 
   // --- Utilidades de red ---
 
@@ -83,12 +112,13 @@
   function iniciarSesion(accessToken, expiresIn) {
     token = accessToken;
     var claims = leerClaims(accessToken);
-    usuario = claims.sub || "?";
+    var usuario = claims.sub || "?";
     scopes = Array.isArray(claims.scopes) ? claims.scopes : [];
     venceEn = Date.now() + (expiresIn || 0) * 1000;
 
+    el("sesion-avatar").textContent = usuario.slice(0, 1);
     el("sesion-usuario").textContent = usuario;
-    el("sesion-scopes").textContent = scopes.length ? scopes.join(" ") : "sin scopes";
+    el("sesion-scopes").textContent = scopes.length ? scopes.join("  ") : "sin scopes";
 
     el("seccion-login").hidden = true;
     el("seccion-sesion").hidden = false;
@@ -104,10 +134,10 @@
 
   function cerrarSesion(motivo) {
     token = null;
-    usuario = null;
     scopes = [];
     venceEn = 0;
     if (relojSesion) { clearInterval(relojSesion); relojSesion = null; }
+    pararCronometro();
 
     el("seccion-sesion").hidden = true;
     el("seccion-consulta").hidden = true;
@@ -115,6 +145,7 @@
     el("seccion-admin").hidden = true;
     el("seccion-login").hidden = false;
 
+    ocultar("error-consulta");
     if (motivo) { mostrarMensaje("error-login", motivo); } else { ocultar("error-login"); }
     el("clave").value = "";
   }
@@ -128,7 +159,7 @@
     var minutos = Math.floor(restante / 60);
     var segundos = restante % 60;
     el("sesion-vence").textContent =
-      "token: " + minutos + ":" + (segundos < 10 ? "0" : "") + segundos;
+      minutos + ":" + (segundos < 10 ? "0" : "") + segundos;
   }
 
   // --- Mensajes ---
@@ -155,6 +186,7 @@
       pill.textContent = "sin conexion";
       pill.className = "pill pill-error";
       detalle.textContent = "";
+      programarEstado(15000);
       return;
     }
 
@@ -185,35 +217,55 @@
     fetch("/health", { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(pintarEstado)
-      .catch(function () { pintarEstado(null); programarEstado(15000); });
+      .catch(function () { pintarEstado(null); });
   }
 
   // --- Respuesta ---
 
+  function nodoCita(cita) {
+    var item = document.createElement("li");
+
+    var documento = document.createElement("span");
+    documento.className = "cita-documento";
+    documento.textContent = cita.document;
+
+    var cabecera = document.createElement("div");
+    cabecera.className = "cita-cabecera";
+    var seccion = document.createElement("span");
+    seccion.className = "cita-seccion";
+    seccion.textContent = cita.section;
+    var relevancia = document.createElement("span");
+    relevancia.className = "cita-relevancia";
+    relevancia.textContent = cita.relevance;
+    cabecera.appendChild(seccion);
+    cabecera.appendChild(relevancia);
+
+    var barra = document.createElement("div");
+    barra.className = "barra-relevancia";
+    var relleno = document.createElement("span");
+    // El score va de 0 a 1. El ancho se asigna aca porque es el unico lugar que
+    // conoce el valor; la CSP no bloquea el CSSOM, solo los estilos del markup.
+    relleno.style.width = Math.round(Math.max(0, Math.min(1, cita.relevance)) * 100) + "%";
+    barra.appendChild(relleno);
+
+    item.appendChild(documento);
+    item.appendChild(cabecera);
+    item.appendChild(barra);
+    return item;
+  }
+
   function pintarRespuesta(datos) {
-    el("pill-fundamentada").textContent = datos.grounded ? "fundamentada" : "sin fundamento";
-    el("pill-fundamentada").className = "pill " + (datos.grounded ? "pill-ok" : "pill-alerta");
+    var pill = el("pill-fundamentada");
+    pill.textContent = datos.grounded ? "fundamentada" : "sin fundamento";
+    pill.className = "pill pill-plana " + (datos.grounded ? "pill-ok" : "pill-alerta");
+
     el("texto-respuesta").textContent = datos.answer;
 
     var lista = el("lista-citas");
     lista.textContent = "";
     var citas = datos.citations || [];
     el("bloque-citas").hidden = citas.length === 0;
-    citas.forEach(function (cita) {
-      var item = document.createElement("li");
-      var relevancia = document.createElement("span");
-      relevancia.className = "cita-relevancia";
-      relevancia.textContent = "relevancia " + cita.relevance;
-      var documento = document.createElement("span");
-      documento.className = "cita-documento";
-      documento.textContent = cita.document;
-      var seccion = document.createElement("span");
-      seccion.textContent = cita.section;
-      item.appendChild(relevancia);
-      item.appendChild(documento);
-      item.appendChild(seccion);
-      lista.appendChild(item);
-    });
+    citas.forEach(function (cita) { lista.appendChild(nodoCita(cita)); });
 
     var uso = datos.usage || {};
     var metricas = [
@@ -254,6 +306,10 @@
   }
 
   // --- Eventos ---
+
+  ["auto", "claro", "oscuro"].forEach(function (opcion) {
+    el("tema-" + opcion).addEventListener("click", function () { aplicarTema(opcion); });
+  });
 
   el("form-login").addEventListener("submit", function (evento) {
     evento.preventDefault();
@@ -328,7 +384,7 @@
     ocultar("resultado-admin");
     var boton = el("boton-reindexar");
     boton.disabled = true;
-    boton.textContent = "Reindexando…";
+    boton.textContent = "Reindexando";
 
     pedir("/admin/ingest", {
       method: "POST",
@@ -356,6 +412,7 @@
 
   // --- Arranque ---
 
+  aplicarTema(temaGuardado());
   el("boton-preguntar").disabled = true;
   consultarEstado();
 })();
