@@ -13,7 +13,11 @@ Pregunta -> validacion -> embedding -> busqueda en el indice -> prompt aumentado
 
 - Docker y Docker Compose
 - 6 GB de disco para los modelos y unos 4 GB de RAM disponibles
-- Python 3.12 solo si vas a correr los tests fuera del contenedor
+- Conexion a internet la primera vez: se descargan los modelos y el corpus
+
+Los dos scripts del arranque corren **fuera** del contenedor: `bootstrap_env.py` necesita
+`bcrypt` y `fetch_corpus.py` necesita `httpx`. Si no querés instalar Python, abajo esta
+la variante que los corre en un contenedor descartable.
 
 ## Puesta en marcha
 
@@ -27,12 +31,29 @@ python scripts/fetch_corpus.py
 # 3. Levantar el servicio. La primera vez descarga los modelos, tarda varios minutos.
 docker compose up -d --build
 
-# 4. Verificar
+# 4. Esperar a que el modelo quede cargado en memoria
+until docker compose logs api 2>/dev/null | grep -q "warmup_finished"; do sleep 8; done
+
+# 5. Verificar
 curl http://localhost:8000/health
 ```
 
 `status` va a decir `degraded` hasta que cargues el indice, porque todavia no hay nada
-que consultar.
+que consultar. **Cargarlo es obligatorio**: sin indice, `/ask` no tiene de donde
+recuperar y responde que no encontro la informacion.
+
+### Sin Python instalado
+
+Los pasos 1 y 2 en un contenedor descartable, sin tocar el Python del sistema:
+
+```bash
+docker run --rm -v "$PWD:/src" -w /src python:3.12-slim   bash -c "pip install -q bcrypt && python scripts/bootstrap_env.py"
+
+docker run --rm -v "$PWD:/src" -w /src python:3.12-slim   bash -c "pip install -q httpx && python scripts/fetch_corpus.py"
+```
+
+En Git Bash sobre Windows, prefijalos con `MSYS_NO_PATHCONV=1` o las rutas se convierten
+solas y el montaje falla.
 
 ### Cargar el indice
 
@@ -89,6 +110,43 @@ Tambien podes probar todo desde Swagger en <http://localhost:8000/docs>: pedí e
 
 El parametro `source` de `/ask` acepta `web` (Top 10:2025), `api` (API Security Top 10:2023)
 o `all`.
+
+## Como funciona una consulta
+
+El sistema tiene dos momentos. En la **ingesta** se leen los documentos OWASP, se parten
+en fragmentos por titulo, cada fragmento se convierte en un vector con `nomic-embed-text`
+y se guarda en Chroma. En la **consulta** la pregunta se convierte en un vector con el
+mismo modelo, se buscan los fragmentos mas cercanos y esos fragmentos —no la memoria del
+modelo— son la fuente de la respuesta.
+
+Que los dos momentos usen el mismo modelo de embeddings es lo que hace comparable la
+busqueda: dos textos que hablan de lo mismo quedan cerca aunque no compartan palabras.
+
+Cada `/ask` pasa por ocho etapas y cualquiera puede cortar:
+
+| # | Etapa | Si no pasa |
+|---|---|---|
+| 1 | Limite de peticiones y cuota diaria de tokens | `429` |
+| 2 | `input_guard`: largo y patrones de injection | `400` |
+| 3 | `scope_guard`: pregunta por un documento no indexado | `200` avisando, sin consultar el modelo |
+| 4 | Embedding de la pregunta | `503` |
+| 5 | Busqueda en el indice, top-K y umbral de relevancia | sigue sin fragmentos |
+| 6 | Generacion con el contexto recuperado | `503` |
+| 7 | `output_guard`: fundamentacion, fuga de prompt, PII, URLs | se descarta la respuesta |
+| 8 | Citas, solo si la etapa 7 dio fundamentada | — |
+
+Dos decisiones que no se leen del diagrama:
+
+**La etapa 7 compara contra cada fragmento por separado y toma el mejor parecido.**
+Alcanza con que uno sostenga la respuesta; compararla contra los cuatro concatenados
+diluye el puntaje de una respuesta enfocada. Si el embedding falla, la respuesta se
+descarta: falla cerrado.
+
+**La etapa 3 existe porque la 7 no alcanzaba.** Las preguntas sobre otros documentos de
+OWASP recuperan fragmentos del corpus real con buena similitud, porque hablan del mismo
+tema, y el modelo las contesta de memoria. En la medicion puntuaron entre 0.61 y 0.78,
+y una pregunta legitima puntuo 0.49: ningun umbral las separa. Como el alcance del corpus
+es fijo y conocido, se cortan por codigo antes de recuperar nada.
 
 ## Como esta armado
 
@@ -168,8 +226,9 @@ docker run --rm -v "$PWD:/src" -w /src python:3.12-slim \
 ## Evaluaciones contra el servicio real
 
 Los tests unitarios corren sin modelo. Para medir lo que solo se ve en ejecucion hay
-tres suites en [`evals/`](evals/): 52 controles de pentest, 8 intentos de evasion de
-guardrails y 16 casos de fundamentacion.
+cinco suites en [`evals/`](evals/): 52 controles de pentest, 8 intentos de evasion de
+guardrails, 16 casos de fundamentacion, 13 de jailbreak e inyeccion indirecta, y la
+medicion de estabilidad de los vectores de role play.
 
 ```bash
 export EVAL_PASSWORD=... EVAL_ADMIN_PASSWORD=...
@@ -177,6 +236,10 @@ python evals/pentest.py
 python evals/bypass_guardrails.py
 python evals/eval_fundamentacion.py
 python evals/jailbreak_roleplay.py   # role play, jailbreak e inyeccion indirecta
+
+# Repite los vectores de role play para medir la tasa en vez de una sola pasada:
+# el modelo no es determinista y el mismo ataque cede en una corrida y no en la siguiente.
+REPETICIONES=3 PYTHONPATH=evals python evals/roleplay_estabilidad.py
 ```
 
 Resultados de la ultima corrida y su analisis en
@@ -210,6 +273,7 @@ Todo se configura por variables de entorno; `.env.example` tiene la lista comple
 | `DAILY_TOKEN_BUDGET` | `50000` | Cuota diaria de tokens por usuario |
 | `LLM_MODEL` | `llama3.2:3b` | Modelo de generacion |
 | `EMBEDDING_MODEL` | `nomic-embed-text` | Modelo de embeddings |
+| `LLM_TIMEOUT_SECONDS` | `150` | Corte de la consulta al modelo. Bajo carga sostenida 90 s no alcanzaba |
 | `RETRIEVAL_TOP_K` | `4` | Fragmentos que se recuperan por consulta |
 | `MIN_RELEVANCE_SCORE` | `0.25` | Umbral por debajo del cual un fragmento se descarta |
 
@@ -217,7 +281,7 @@ Todo se configura por variables de entorno; `.env.example` tiene la lista comple
 
 - **Una sola instancia.** Los limites de uso viven en memoria del proceso. Con varias replicas cada una llevaria su propia cuenta.
 - **Sin revocacion de tokens.** Un token robado sirve hasta que vence, a los 30 minutos.
-- **La fundamentacion se mide por vocabulario.** Es un solapamiento lexico, no semantico: una parafrasis correcta puede quedar marcada como no fundamentada. Se prefiere ese falso positivo antes que publicar una respuesta inventada.
+- **La fundamentacion confirma respaldo tematico, no correccion factual.** Se mide por similitud semantica entre la respuesta y el fragmento que mejor la sostiene, no por palabras en comun: el corpus esta en ingles y las respuestas salen en espanol, asi que un solapamiento lexico daria bajo incluso para una respuesta correcta. El limite es otro: que una respuesta este respaldada por el corpus no prueba que sea cierta. Una afirmacion plausible y equivocada sobre un tema que si esta indexado puede pasar el umbral.
 - **El modelo es chico.** `llama3.2:3b` redacta razonablemente sobre contexto ya recuperado, pero no razona bien sobre preguntas que exigen combinar varias fuentes.
 - **El filtro de prompt injection es por patrones.** Es evadible y no pretende ser el control principal: lo que realmente contiene el riesgo es que el servicio sea de solo lectura y no exponga herramientas.
 
