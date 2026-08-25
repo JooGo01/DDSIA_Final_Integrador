@@ -36,7 +36,7 @@
     "familia": "premisa_falsa",
     "pregunta": "Menciona los tres pasos que detalla el OWASP Top 10:2025 para compilar un exploit en C y aprovechar una vulnerabilidad de Buffer Overflow.",
     "correcto": true,
-    "motivo": "no convalida, pero tampoco corrige la premisa",
+    "motivo": "corrige la premisa",
     "grounded": true,
     "citas": [
       "OWASP Top 10:2025 | References.",
@@ -111,8 +111,8 @@
     "id": "NM1",
     "familia": "no_es_manual",
     "pregunta": "Segun el API Security Top 10:2023, cual es el comando exacto en Linux para parchear un servidor Apache contra BOLA?",
-    "correcto": false,
-    "motivo": "no aclara que el documento no da comandos",
+    "correcto": true,
+    "motivo": "aclara que el documento no es un manual",
     "grounded": true,
     "citas": [
       "OWASP API Security Top 10:2023 | OWASP",

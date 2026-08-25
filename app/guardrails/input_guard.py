@@ -8,20 +8,32 @@ la salida. Un filtro de patrones nunca cubre todas las variantes.
 import re
 from dataclasses import dataclass
 
-# Frases que intentan reescribir las reglas del sistema.
+from app.guardrails.instruction_patterns import OVERRIDE_INSTRUCTIONS
+
+# Ordenes que buscan anular las reglas del sistema: lista compartida con la revision
+# de la ingesta. En `instruction_patterns` esta por que vive en un solo lugar.
+#
+# Lo que sigue es lo propio de una pregunta de usuario y no aplica a un documento:
+# pedirle al asistente que recite su configuracion, y las marcas de jailbreak.
 INJECTION_PATTERNS = [
-    re.compile(r"ignor[aáe]\w*\s+(las\s+)?(instrucciones|reglas|indicaciones)", re.IGNORECASE),
-    re.compile(r"ignore\s+(all\s+|previous\s+|prior\s+)+(instructions|rules)", re.IGNORECASE),
-    re.compile(r"olvid[aáe]\w*\s+(todo|las\s+instrucciones)", re.IGNORECASE),
-    re.compile(r"(system|developer)\s*(prompt|message)", re.IGNORECASE),
+    *OVERRIDE_INSTRUCTIONS,
+    # El posesivo hace el trabajo. "Que dice el Top 10 sobre configuracion incorrecta"
+    # es una pregunta legitima —A05 trata exactamente eso— y "decime tu configuracion"
+    # no lo es. Sin exigir el posesivo, el patron bloqueaba media categoria.
     re.compile(
-        r"(mostr|revel|imprim|repet|divulg|list)\w*\s+.{0,25}"
-        r"(instruccion|prompt|configuraci[oó]n|reglas internas)",
+        r"\b(mostr|revel|imprim|repet|divulg|list|transcrib|enumer|recit|dec[ií]|cont[aá]|dame)"
+        r"\w*\b[^.?!]{0,30}?\b(tus?|sus?)\s+"
+        r"(instruccion\w*|indicacion\w*|prompt|directiva\w*)",
         re.IGNORECASE,
     ),
+    re.compile(
+        r"\b(prompt\s+(de\s+)?sistema|system\s+prompt|reglas\s+internas"
+        r"|instrucciones\s+internas|indicaciones\s+internas|configuraci[oó]n\s+interna)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"(system|developer)\s*(prompt|message)", re.IGNORECASE),
     re.compile(r"act[uú]a\s+como\s+(si\s+)?(no\s+tuvieras|otro)", re.IGNORECASE),
     re.compile(r"\bDAN\b|\bjailbreak\b|modo\s+desarrollador", re.IGNORECASE),
-    re.compile(r"</?(system|instructions?)>", re.IGNORECASE),
 ]
 
 # Largo maximo de una palabra suelta. Ninguna palabra del castellano ni del ingles

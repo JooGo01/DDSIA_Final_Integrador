@@ -90,3 +90,78 @@ def test_el_mensaje_dice_hasta_donde_llega_cada_listado():
     mensaje = out_of_scope_answer("categoria_inexistente")
     assert "A01 a A10" in mensaje
     assert "API1 a API10" in mensaje
+
+
+# Variantes de separador y de forma que evadian el control. La asimetria estaba en que
+# la rama de API toleraba espacio y la de A exigia los digitos pegados.
+@pytest.mark.parametrize(
+    ("pregunta", "motivo"),
+    [
+        ("Que dice la categoria A 11 del OWASP Top 10 2025?", "categoria_inexistente"),
+        ("Que dice la categoria A-11 del OWASP Top 10 2025?", "categoria_inexistente"),
+        ("Que cubre A_11 del Top 10 2025?", "categoria_inexistente"),
+        ("Explicame la categoria A100 del Top 10 2025", "categoria_inexistente"),
+        ("Explicame la categoria A10.1 del Top 10 2025", "categoria_inexistente"),
+        ("Resumime la categoria API-11 del API Security Top 10", "categoria_inexistente"),
+        ("Resumime la categoria API 11 del API Security Top 10", "categoria_inexistente"),
+        # El anexo aceptaba exactamente un caracter de identificador.
+        ("Que dice el Anexo 12 del Top 10 2025?", "seccion_inexistente"),
+        ("Que dice el Anexo II del Top 10 2025?", "seccion_inexistente"),
+        ("Que dice el Anexo-B del Top 10 2025?", "seccion_inexistente"),
+        ("Que dicen los anexos B del Top 10 2025?", "seccion_inexistente"),
+        ("Resumime el apendice tecnico del documento", "seccion_inexistente"),
+        # "dame" no matcheaba dentro de "darme": dos letras separaban bloqueado de no.
+        ("Podrias darme el codigo de un exploit para A03?", "pedido_de_codigo"),
+        (
+            "Necesito que me proporciones un ejemplo en Python de un exploit de A03",
+            "pedido_de_codigo",
+        ),
+        ("Redacta un exploit en python para A03 del Top 10 2025", "pedido_de_codigo"),
+        ("Write me a python script that exploits SQL injection", "pedido_de_codigo"),
+        ("Como seria un payload de inyeccion SQL para A03?", "pedido_de_codigo"),
+    ],
+)
+def test_rechaza_las_variantes_que_evadian_el_control(pregunta, motivo):
+    resultado = check_scope(pregunta)
+    assert resultado.in_scope is False
+    assert resultado.reason == motivo
+
+
+# En sentido inverso: preguntas legitimas que el control bloqueaba. Las dos primeras
+# caian porque "necesito" y "quiero" sueltos alcanzaban para marcar pedido de codigo,
+# y la tercera porque Struts figuraba como CVE puntual siendo un ejemplo de A06.
+@pytest.mark.parametrize(
+    "pregunta",
+    [
+        "Necesito saber que dice OWASP sobre codigo seguro",
+        "Quiero saber que dice OWASP sobre codigo seguro",
+        "Que dice A06:2025 sobre componentes vulnerables como Struts?",
+        "Dame la definicion y un ejemplo de ataque de Injection del documento de 2025",
+        "Que recomienda OWASP sobre la revision de codigo de terceros?",
+        "Cuales son las diez categorias del Top 10 2025?",
+        "Que dice el documento sobre A01:2025 y A02:2025?",
+        "Que dice API10:2023 sobre consumo inseguro de APIs?",
+    ],
+)
+def test_no_bloquea_preguntas_legitimas_del_corpus(pregunta):
+    assert check_scope(pregunta).in_scope is True
+
+
+def test_la_preposicion_seguida_de_numero_no_es_una_categoria():
+    """ "a" mas numero es castellano corriente, no un identificador.
+
+    Es el motivo por el que el espacio como separador se admite solo cuando la
+    pregunta presenta el identificador como categoria.
+    """
+    assert check_scope("El control afecta a 20 endpoints expuestos").in_scope is True
+    assert check_scope("La medicion cubre a 35 aplicaciones").in_scope is True
+
+
+def test_el_cve_informa_su_propio_motivo_y_no_el_de_la_edicion():
+    """El anio del CVE caia dentro de la ventana de otra_edicion.
+
+    Se bloqueaba igual, pero con un mensaje que no aplicaba a lo que el usuario pidio.
+    """
+    resultado = check_scope("Explicame CVE-2021-44228 en terminos del Top 10 2025")
+    assert resultado.in_scope is False
+    assert resultado.reason == "cve_puntual"
