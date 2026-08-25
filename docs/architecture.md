@@ -44,6 +44,9 @@ publica lo resuelve codigo deterministico.
 
 **Motivo.** Una medicion de la que dependen decisiones no admite inferencia. El
 `grounded` de la respuesta y las citas son datos verificables, no opiniones del modelo.
+Son **controles deterministas**: reglas escritas en codigo, que se pueden leer, versionar
+y probar, en lugar de criterios que el modelo aplica de forma distinta en cada corrida.
+La seccion 12 los enumera uno por uno contra los puntos de confianza que cubren.
 
 **Como se mide.** Se embebe la respuesta y cada fragmento recuperado, y se toma la
 similitud coseno mas alta: alcanza con que un fragmento la sostenga. Se probo primero
@@ -175,3 +178,69 @@ sale al cliente.
 
 En todos los casos aplica el mismo criterio: elegir el menor nivel de autonomia y de
 complejidad que resuelva el caso con seguridad y costo razonables.
+
+## 12. Puntos de confianza, controles deterministas y aprobacion humana
+
+Las secciones anteriores explican cada decision por separado. Esta las ordena segun las
+tres preguntas que conviene poder responder de corrido: **donde el sistema recibe algo
+que no controla**, **que codigo decide en cada uno de esos puntos**, y **que accion
+exige que intervenga una persona**.
+
+### Los cinco puntos de confianza
+
+Un punto de confianza es un lugar donde entra material de origen ajeno. No importa que
+el material parezca inofensivo: importa que el sistema no lo produjo.
+
+| # | Punto de confianza | Que entra |
+|---|---|---|
+| P1 | La pregunta del usuario | Texto arbitrario de un cliente autenticado |
+| P2 | El corpus ingestado | Documentos descargados de repositorios externos |
+| P3 | La respuesta del modelo | Texto generado por un sistema probabilistico |
+| P4 | El token presentado | Una credencial que dice quien es quien la trae |
+| P5 | Las cabeceras del cliente | `X-Request-ID`, que se refleja en logs y respuesta |
+
+### Los cinco controles deterministas
+
+En cada punto decide codigo, no el modelo. Esa es la regla de la seccion 3 —el modelo
+redacta, el codigo decide— aplicada punto por punto.
+
+| Punto | Control | Donde |
+|---|---|---|
+| P1 | Contrato del esquema: largo, tipos y rechazo de campos no declarados; despues patrones de injection, palabra ilegible y datos personales; despues alcance del corpus | `schemas.py`, `input_guard.check_question`, `scope_guard.check_scope` |
+| P2 | Revision de la ingesta: un fragmento que da ordenes en vez de describir no entra al indice | `corpus_guard.scan_chunks`, llamado desde `rag/ingest.py` |
+| P3 | Validacion de salida: fuga de prompt, datos personales, URLs no verificables, nomenclatura cruzada, codigo inventado y fundamentacion | `output_guard.check_answer` |
+| P4 | Verificacion del JWT con algoritmo explicito y `exp`, `iat`, `iss`, `aud` y `sub` obligatorios, mas el scope exigido por endpoint | `core/security.decode_access_token`, `api/deps.require_scope` |
+| P5 | Lista blanca de caracteres antes de reflejar el identificador; si no valida, se genera uno propio | `SAFE_REQUEST_ID` en `main.py` |
+
+Ninguno de los cinco le pregunta al modelo si algo es aceptable. Todos son reglas que se
+pueden leer, versionar y probar: por eso cada uno tiene su test en `tests/`.
+
+El orden importa tanto como la lista. P2 se controla **en la ingesta y no en la salida**,
+porque contra inyeccion indirecta la validacion de salida es estructuralmente incapaz:
+compara la respuesta contra el contexto recuperado, y en ese ataque el contenido
+malicioso **es** el contexto. Reproducirlo fielmente puntua como perfectamente
+fundamentado. La medicion esta en `docs/security-audit.md`: tres de tres consultas
+comprometidas antes del control, cero de tres despues, sin falsos positivos sobre los
+222 fragmentos del corpus real.
+
+### Que exige aprobacion humana
+
+**Ninguna accion, y es una consecuencia del diseno y no un olvido.**
+
+El servicio no ejecuta nada en nombre del usuario. No hay llamadas a herramientas ni
+funciones que el modelo pueda invocar: `rag/generate.py` le pasa al modelo un prompt de
+sistema y un bloque de contexto, y recibe texto. El unico efecto de escritura del
+sistema entero es reconstruir el indice, y eso ya esta detras de un scope propio
+(`admin:ingest`) que se le pide a una persona autenticada, no al modelo.
+
+Sin acciones que autorizar, un punto de aprobacion humana no tendria nada que aprobar:
+seria una demora sin control. El techo del dano no es una transferencia mal dirigida ni
+un archivo borrado, es **una respuesta incorrecta en pantalla**, y contra eso el control
+que sirve es la validacion de salida, no una confirmacion.
+
+**Cuando habria que revisar esto.** En el momento en que el asistente pueda ejecutar
+algo —consultar una API, escribir en un sistema, abrir un ticket— el analisis cambia por
+completo: aparece un sexto punto de confianza, la decision del modelo sobre que
+herramienta invocar y con que argumentos, y ahi si hace falta autorizacion por
+herramienta y aprobacion humana para lo irreversible. La seccion 11 explica por que hoy
+no se construyo esa capacidad.
