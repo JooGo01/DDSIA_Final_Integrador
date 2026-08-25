@@ -374,7 +374,8 @@ Las decisiones y lo que se resigna con cada una estan en
 [docs/architecture.md](docs/architecture.md) — su seccion 12 resume los cinco puntos de
 confianza del sistema, el control determinista que cubre cada uno y por que ninguna
 accion exige aprobacion humana. El modelo de amenazas STRIDE, en
-[docs/threat-model.md](docs/threat-model.md). La auditoria de seguridad y la
+[docs/threat-model.md](docs/threat-model.md), que ademas cruza el sistema contra el
+OWASP Top 10 for LLM Applications categoria por categoria. La auditoria de seguridad y la
 evaluacion de cuanto inventa el asistente, en
 [docs/security-audit.md](docs/security-audit.md).
 
