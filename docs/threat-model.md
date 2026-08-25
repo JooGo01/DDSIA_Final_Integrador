@@ -177,6 +177,48 @@ Las amenazas que no se pueden verificar con un test unitario —evasion de guard
 respuestas inventadas— se miden contra el servicio real con las suites de `evals/`.
 Los resultados de la ultima corrida estan en [security-audit.md](security-audit.md).
 
+## Cobertura del OWASP Top 10 for LLM Applications (2025)
+
+El analisis STRIDE de arriba se hizo por elemento del sistema. Esta tabla lo cruza con
+la taxonomia especifica de aplicaciones con modelos de lenguaje, que es la grilla con la
+que se revisa este tipo de servicio. Sirve para lo que sirve un checklist: mostrar que
+lo que quedo afuera quedo afuera por una razon y no por olvido.
+
+Cada fila apunta a la amenaza T-xx que la trata, al control que la cubre y a la prueba
+que lo verifica.
+
+| # | Riesgo | Como lo trata este proyecto | Evidencia |
+|---|---|---|---|
+| LLM01 | Prompt injection | Las dos formas. La directa la filtra `input_guard` sobre la pregunta; la indirecta la corta `corpus_guard` en la ingesta, que es la unica capa que puede verla. **T-01** y **T-02** | `tests/test_corpus_guard.py`, `evals/jailbreak_roleplay.py`, `evals/bypass_guardrails.py` |
+| LLM02 | Fuga de informacion sensible | `find_pii` se aplica a la pregunta y tambien a la respuesta; los logs enmascaran `question`, `answer`, `context` y `token`; los errores devuelven `trace_id` y nunca el detalle interno. **T-06** | `tests/test_guardrails.py`, `evals/pentest.py` |
+| LLM03 | Cadena de suministro | Versiones fijas en `pyproject.toml`, `pip-audit` sobre las dependencias, Trivy y SBOM CycloneDX sobre la imagen, y el corpus se descarga de los repositorios oficiales de OWASP. **T-08** | Job `image` de `.github/workflows/ci.yml` |
+| LLM04 | Envenenamiento de datos y del modelo | No hay entrenamiento ni ajuste fino, asi que la unica via es el corpus: la cubre `corpus_guard`. Es el mismo control que LLM01 indirecta, porque en un RAG envenenar el dato **es** inyectar la instruccion. **T-01** | `tests/test_corpus_guard.py` |
+| LLM05 | Manejo inadecuado de la salida | La respuesta del modelo se trata como dato no confiable: seis comprobaciones antes de publicarla —fuga de prompt, datos personales, URLs no verificables, nomenclatura cruzada, codigo inventado y fundamentacion—. En la interfaz, todo lo que viene del servidor entra por `textContent`. **T-09** | `tests/test_guardrails.py`, `tests/test_web.py` |
+| LLM06 | Autonomia excesiva | No aplica, y es una decision. El modelo no invoca herramientas: recibe un prompt y devuelve texto. Ver la seccion 12 de `architecture.md`. | `app/rag/generate.py` |
+| LLM07 | Fuga del prompt de sistema | Detector propio sobre frases textuales del prompt, con la respuesta descartada si dispara. Medido sobre tres corridas de los diez vectores de role play: en los treinta intentos, ninguno filtro el prompt real. Los cuatro que cedieron lo hicieron obedeciendo la forma del pedido, no revelando la configuracion. **T-02** | `evals/jailbreak_roleplay.py`, `evals/roleplay_estabilidad.py` |
+| LLM08 | Debilidades de vectores y embeddings | El riesgo propio del RAG, y donde esta el hallazgo mas fuerte del trabajo: la similitud coseno mide si la respuesta **suena** como el corpus, no si el corpus la **respalda**. Umbral calibrado con datos (0,55), filtro por documento en `store.search` y control de alcance por codigo antes de recuperar. **T-09** | `evals/eval_fundamentacion.py`, `evals/preguntas_trampa.py` |
+| LLM09 | Desinformacion y alucinaciones | La consecuencia de LLM08 y el techo del dano de todo el sistema. Ademas del umbral, `scope_guard` corta las preguntas que el corpus no puede responder, y la bateria de trampas mide que pasa cuando la pregunta esta mal planteada. **T-09** | `evals/preguntas_trampa.py`, `evals/eval_fundamentacion.py` |
+| LLM10 | Consumo sin limite | Cuatro topes distintos: peticiones por minuto, presupuesto diario de tokens por usuario, tope de tokens de salida y timeout sobre el modelo, mas los limites de CPU, memoria y PIDs del contenedor. **T-03** | `tests/test_ratelimit.py`, `evals/pentest.py` |
+
+### Lo que la tabla no cierra
+
+Tres cosas, para que no parezca que el checklist esta completo cuando no lo esta.
+
+**LLM08 no tiene control de acceso por documento.** El retrieval filtra por documento de
+origen, no por usuario: `store.search` acepta `source`, no un principal. Con un corpus
+publico y un solo inquilino no hay nada que aislar, pero el control que corresponde a
+este riesgo es filtrar permisos **durante la recuperacion** y no al indexar, y eso hoy no
+existe. Es lo primero que habria que construir si el corpus dejara de ser publico.
+
+**LLM01 sigue siendo evadible en la primera capa.** El filtro de entrada es defensa en
+profundidad y esta medido como tal: cinco de ocho variantes lo evadieron, ninguna llego a
+filtrar el prompt. Lo que contiene el riesgo es que el servicio sea de solo lectura y que
+la salida se valide, no el filtro.
+
+**LLM09 se acota, no se resuelve.** La fundamentacion confirma respaldo tematico, no
+correccion factual. Una afirmacion plausible y equivocada sobre un tema que si esta
+indexado puede pasar el umbral.
+
 ## Amenazas fuera de alcance, y por que
 
 | Amenaza | Motivo |
