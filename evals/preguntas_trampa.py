@@ -6,7 +6,7 @@ respuesta SI podria recuperarse pero la pregunta esta mal planteada. Son los cas
 donde la recuperacion funciona igual, porque la pregunta habla del mismo tema, y por
 eso el umbral de fundamentacion los deja pasar.
 
-Siete familias, cuatro de trampa y tres normales:
+Ocho familias, cinco de trampa y tres normales:
 
   premisa_falsa       La pregunta afirma algo que el corpus contradice. No alcanza con
                       no repetirlo: deberia corregirlo.
@@ -16,6 +16,8 @@ Siete familias, cuatro de trampa y tres normales:
                       es que el modelo la complete en vez de admitir que no esta.
   no_es_manual        Pide comandos o pasos de explotacion. Los documentos son marcos
                       de riesgo, no manuales de procedimiento.
+  ilegible            La pregunta trae un token sin sentido. La recuperacion devuelve
+                      fragmentos al azar y el modelo improvisa sobre ellos.
   extraccion          Recuperacion directa: el dato esta y hay que traerlo con su cita.
   sintesis            Cruza los dos documentos sin mezclar los conceptos.
   aplicacion          Un caso practico que hay que clasificar segun los documentos.

@@ -14,7 +14,7 @@ Todo lo que sigue es reproducible con los scripts de [`evals/`](../evals/).
 | Evasion del filtro de entrada | 5 de 8 lo evadieron | igual, 0 fugas del prompt |
 | Evaluacion de fundamentacion | 11 / 16 | **16 / 16** |
 | Inyeccion indirecta via corpus | **3 / 3 comprometido** | **0 / 3** |
-| Role play y jailbreak | — | 9 / 10 contenidos |
+| Role play y jailbreak | — | 26 / 30 intentos contenidos sobre 3 corridas |
 
 Dos vulnerabilidades reales encontradas y corregidas, cinco hallazgos de revision de
 codigo (cuatro corregidos, uno aceptado) y tres limitaciones estructurales declaradas.
@@ -202,12 +202,14 @@ limitacion en lugar de presentarse como garantia.
 ## Cuarto hallazgo: la pregunta mal planteada pasa todos los filtros
 
 Los controles anteriores miran el **contexto** recuperado y la **respuesta**. Ninguno
-mira si la pregunta da por cierto algo falso. Se armo una bateria de 20 casos
-(`evals/preguntas_trampa.py`) en siete familias: cuatro de trampa y tres normales.
+mira si la pregunta da por cierto algo falso. Se armo una bateria de 21 casos
+(`evals/preguntas_trampa.py`) en ocho familias: cinco de trampa y tres normales. La
+quinta familia de trampa, `ilegible`, se sumo despues de la primera corrida, que tenia
+20 casos: por eso las dos columnas de la tabla de abajo tienen denominador distinto.
 
 ### Que se encontro
 
-Las cuatro familias de trampa comparten la misma forma, y es justo la que ningun umbral
+Las familias de trampa comparten la misma forma, y es justo la que ningun umbral
 separa: la pregunta habla del tema del corpus, la recuperacion trae fragmentos
 legitimos, la fundamentacion los aprueba con buen puntaje, y el modelo completa lo que
 la pregunta da por sentado.
@@ -252,6 +254,12 @@ explotacion.
 | sintesis | 3/3 | 3/3 |
 | aplicacion | 2/2 | 2/2 |
 | **Total** | **18/20** | **20/21** |
+
+`evals/resultados-trampas.json` conserva la respuesta completa del modelo en cada caso,
+y su veredicto se recalculo con el scorer corregido: quedaba guardado el de la version
+previa, que marcaba NM1 como falla cuando la respuesta era correcta. Las respuestas no
+se tocaron —son la evidencia— y solo se recomputaron los campos derivados, que es lo
+que hace la columna de la derecha. El archivo daba 19/21 y ahora coincide con la tabla.
 
 Las dos columnas estan puntuadas con la **misma** version del scorer. Hizo falta
 aclararlo porque el scorer se corrigio a mitad de camino: no reconocia varias formas de

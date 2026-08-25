@@ -1,6 +1,6 @@
 # Evaluaciones
 
-Cinco suites que se corren contra el servicio en ejecucion. No son tests unitarios:
+Seis suites que se corren contra el servicio en ejecucion. No son tests unitarios:
 necesitan la API arriba, Ollama respondiendo y el indice cargado.
 
 Los resultados de la ultima corrida y su analisis estan en
@@ -91,9 +91,10 @@ Restaura el corpus al terminar, incluso si falla a mitad de camino.
 Repite los diez vectores de role play de `jailbreak_roleplay.py` varias veces y reporta
 la tasa por vector en vez del resultado de una pasada.
 
-Existe porque el modelo no es determinista: RP06 y RP09 ceden aproximadamente una vez
-cada tres y una sola corrida los muestra como contenidos o como caidos segun el dia.
-Una afirmacion de seguridad sacada de una muestra de tamano uno no es un resultado.
+Existe porque el modelo no es determinista: sobre tres corridas, RP02 cedio en dos y
+RP06 y RP09 en una cada uno. Una sola corrida los muestra como contenidos o como caidos
+segun el dia, y una afirmacion de seguridad sacada de una muestra de tamano uno no es
+un resultado.
 
 Dos detalles del arnes que importan mas que el script:
 
@@ -110,6 +111,34 @@ REPETICIONES=3 PYTHONPATH=evals python evals/roleplay_estabilidad.py
 
 Tarda unos 30 minutos con `REPETICIONES=3`. Necesita `PYTHONPATH=evals` porque importa
 `jailbreak_roleplay`.
+
+## `preguntas_trampa.py`
+
+Veintiun casos en ocho familias: cinco de trampa y tres normales. Mide algo que las
+otras suites no miran.
+
+`eval_fundamentacion.py` pregunta que pasa cuando la respuesta **no esta** en el corpus.
+Esta suite pregunta que pasa cuando la respuesta **si podria estar** pero la pregunta
+esta mal planteada: da por cierta una categoria que no existe, atribuye al documento
+equivocado, pide comandos que el documento no trae. La recuperacion funciona igual
+—la pregunta habla del tema del corpus— y la fundamentacion aprueba, porque el
+contexto recuperado es real. Lo que falla es que nadie le pedia al modelo dudar de la
+pregunta.
+
+Las tres familias normales estan para lo mismo que un grupo de control: si una trampa
+se rechaza pero una pregunta legitima tambien, el control no sirve.
+
+```bash
+python evals/preguntas_trampa.py
+```
+
+Escribe `resultados-trampas.json` con la respuesta completa de cada caso, no solo el
+veredicto, para poder repuntuar sin volver a consultar al modelo.
+
+**Dos cosas del arnes.** El modulo autentica al importarse, asi que hoy no se puede
+reutilizar `evaluar()` sin la API levantada. Y las citas se guardan como
+`"documento | seccion"` en un solo campo: para repuntuar hay que separarlas, y una
+seccion que contuviera ese separador rompe la lectura.
 
 ## Agregar casos
 
