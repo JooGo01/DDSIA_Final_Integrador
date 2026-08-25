@@ -311,6 +311,10 @@ en `/auth/token` y pegalo en **Authorize**.
 | GET | `/health` | publico | Estado del modelo, fragmentos indexados y si esta indexando |
 | GET | `/metrics` | publico | Metricas en formato Prometheus |
 
+Swagger (`/docs`) se publica solo con `ENVIRONMENT=dev`. Fuera de ahi no aporta y suma
+superficie: es la unica ruta exenta de la politica de contenido y carga su JavaScript
+de un CDN sin verificar integridad.
+
 El parametro `source` de `/ask` acepta `web` (Top 10:2025), `api` (API Security Top 10:2023)
 o `all`. `/admin/ingest` devuelve `409` si ya hay una ingesta en curso: las dos escriben
 sobre el mismo indice y no pueden solaparse.
@@ -546,6 +550,7 @@ Todo se configura por variables de entorno; `.env.example` tiene la lista comple
 | `REQUESTS_PER_MINUTE` | `10` | Limite de consultas por usuario |
 | `LOGIN_ATTEMPTS_PER_MINUTE` | `5` | Limite de intentos de login por IP |
 | `DAILY_TOKEN_BUDGET` | `50000` | Cuota diaria de tokens por usuario |
+| `MIN_SECONDS_BETWEEN_INGESTS` | `60` | Espera minima entre dos reindexados completos |
 | `LLM_MODEL` | `llama3.2:3b` | Modelo de generacion |
 | `EMBEDDING_MODEL` | `nomic-embed-text` | Modelo de embeddings |
 | `LLM_TIMEOUT_SECONDS` | `150` | Corte de la consulta al modelo. Bajo carga sostenida 90 s no alcanzaba |

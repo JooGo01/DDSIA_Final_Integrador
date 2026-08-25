@@ -496,7 +496,7 @@ memoria — el Top 10 cambio de orden en 2025 y varias categorias no estan donde
 | # | Categoria | Estado |
 |---|---|---|
 | A01 | Broken Access Control | **Cubierto.** Scope por endpoint verificado en el servidor, nunca en el cliente. No hay endpoints por identificador de objeto, asi que no hay superficie de IDOR. Medido en `evals/pentest.py`. |
-| A02 | Security Misconfiguration | **Cubierto, con un pendiente.** Contenedor sin root, `read_only`, `cap_drop: ALL`, `no-new-privileges`, limites de CPU, memoria y PIDs; cabeceras de seguridad y CSP sin origenes externos; el servicio no arranca sin `JWT_SECRET`. Pendiente: `/docs` queda expuesto tambien fuera de desarrollo, y es la unica ruta exenta de CSP. |
+| A02 | Security Misconfiguration | **Cubierto.** Contenedor sin root, `read_only`, `cap_drop: ALL`, `no-new-privileges`, limites de CPU, memoria y PIDs; cabeceras de seguridad y CSP sin origenes externos; el servicio no arranca sin `JWT_SECRET`. Swagger se publica solo en desarrollo, y la exencion de CSP se compara por ruta exacta y no por prefijo. |
 | A03 | Software Supply Chain Failures | **Cubierto.** Versiones fijas, `pip-audit` sobre dependencias, Trivy y SBOM CycloneDX sobre la imagen, hadolint sobre el Dockerfile. El corpus se descarga de los repositorios oficiales de OWASP. |
 | A04 | Cryptographic Failures | **Parcial y declarado.** bcrypt con coste 12 para las contrasenas, JWT con algoritmo explicito y secreto de 32 caracteres minimo. No hay TLS: el servicio escucha en `127.0.0.1` y se asume un proxy adelante si sale de ahi. HS256 es simetrico, que alcanza para un emisor unico y no para varios. |
 | A05 | Injection | **Sin superficie clasica, con una propia.** No hay SQL, ni `subprocess`, ni `eval`: verificado sobre `app/` completo. La inyeccion que si aplica es la de prompt, directa e indirecta, y tiene su propio hallazgo en este documento. |
@@ -515,7 +515,7 @@ memoria — el Top 10 cambio de orden en 2025 y varias categorias no estan donde
 | API3 | Broken Object Property Level Authorization | **Cubierto.** La entrada rechaza campos no declarados y la salida se serializa contra un esquema fijo, asi que no hay asignacion masiva ni propiedades de mas. |
 | API4 | Unrestricted Resource Consumption | **Cubierto.** Cuatro topes: peticiones por minuto, presupuesto diario de tokens por usuario, tope de tokens de salida y timeout del modelo, mas los limites del contenedor. |
 | API5 | Broken Function Level Authorization | **Cubierto.** `ask:read` y `admin:ingest` son scopes distintos, y un analista con token valido recibe 403 en la reingesta. Medido en `evals/pentest.py`. |
-| API6 | Unrestricted Access to Sensitive Business Flows | **Abierto.** El unico flujo costoso es la reingesta. Esta detras de su scope y de un lock que impide concurrencia, pero no tiene limite de uso ni descuenta del presupuesto: repetirla en serie satura el modelo y degrada `/ask`. |
+| API6 | Unrestricted Access to Sensitive Business Flows | **Cubierto.** El unico flujo costoso es la reingesta. Tiene su scope, un lock que impide que dos se solapen y una espera minima entre corridas: el lock cubre el solapamiento y la espera cubre el encadenado, que es lo que degradaba `/ask`. |
 | API7 | Server Side Request Forgery | **Sin superficie.** El servicio hace una sola llamada saliente, a la URL del modelo que viene de configuracion. Nada de lo que escribe el usuario se convierte en un destino. Ademas, una URL que aparezca en la respuesta y no este en el contexto recuperado se descarta. |
 | API8 | Security Misconfiguration | Ver A02. |
 | API9 | Improper Inventory Management | **Parcial.** Seis rutas, todas documentadas en el README y en el esquema OpenAPI; no hay endpoints huerfanos ni versiones viejas conviviendo. Lo que falta es prefijo de version y politica de deprecacion: hoy un cambio incompatible no tiene donde vivir. |
@@ -523,13 +523,14 @@ memoria — el Top 10 cambio de orden en 2025 y varias categorias no estan donde
 
 ### Lo que queda abierto
 
-Cuatro cosas, que son las que un auditor deberia mirar primero:
+Dos cosas, que son las que un auditor deberia mirar primero:
 
-1. **API6** — la reingesta no tiene limite de uso ni descuenta presupuesto.
-2. **A09** — hay observabilidad pero no alertas: la categoria se llama *logging **and alerting***.
-3. **A02** — `/docs` expuesto fuera de desarrollo, y es la unica ruta sin CSP.
-4. **A04 / API9** — sin TLS propio y sin versionado de API. Las dos son decisiones razonables
+1. **A09** — hay observabilidad pero no alertas: la categoria se llama *logging **and alerting***.
+2. **A04 / API9** — sin TLS propio y sin versionado de API. Las dos son decisiones razonables
    para el alcance actual y las dos se rompen apenas el servicio salga de `localhost`.
+
+API6 y A02 estaban en esta lista y se cerraron: la reingesta tiene espera minima entre
+corridas, y Swagger dejo de publicarse fuera de desarrollo.
 
 ## Como reproducir
 
