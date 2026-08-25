@@ -14,25 +14,15 @@ no da ordenes al lector ni redefine reglas. Un fragmento que si lo hace no entra
 al indice.
 """
 
-import re
 from dataclasses import dataclass
 
+from app.guardrails.instruction_patterns import OVERRIDE_INSTRUCTIONS
+
 # Texto que da ordenes en lugar de describir. Un documento tecnico no habla asi.
-INSTRUCTION_PATTERNS = [
-    re.compile(r"ignor[aáe]\w*\s+(todas?\s+)?(las\s+)?(instrucciones|reglas|indicaciones)", re.I),
-    re.compile(
-        r"\bignore\s+(all\s+|any\s+|previous\s+|prior\s+|the\s+)*(instructions?|rules?)", re.I
-    ),
-    re.compile(r"disregard\s+(all\s+|any\s+|previous\s+|prior\s+)*(instructions?|rules?)", re.I),
-    re.compile(r"olvid[aáe]\w*\s+(todo|las\s+(instrucciones|reglas))", re.I),
-    re.compile(r"instrucciones\s+del\s+sistema\s*:", re.I),
-    re.compile(r"\b(system|developer)\s+(prompt|instructions?)\s*:", re.I),
-    re.compile(r"a\s+partir\s+de\s+ahora\s+(deb[eé]s|debes|tienes\s+que|vas\s+a)", re.I),
-    re.compile(r"(tus|sus)\s+respuestas\s+deben\s+(comenzar|empezar|incluir)", re.I),
-    re.compile(r"from\s+now\s+on\s+you\s+(must|should|will)", re.I),
-    re.compile(r"\bnew\s+(instructions?|rules?)\s*:", re.I),
-    re.compile(r"</?(system|instructions?|prompt)>", re.I),
-]
+#
+# Es la misma lista que revisa la pregunta del usuario. Estuvo duplicada y las dos
+# copias se separaron: ver `instruction_patterns`.
+INSTRUCTION_PATTERNS = OVERRIDE_INSTRUCTIONS
 
 
 @dataclass(frozen=True)
