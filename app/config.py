@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     login_attempts_per_minute: int = 5
     daily_token_budget: int = 50_000
 
+    # Espera minima entre dos ingestas completas. El lock impide que se solapen,
+    # pero no que se encadenen: cada corrida re-vectoriza el corpus entero contra
+    # el modelo, y repetirla en serie deja a /ask sin capacidad.
+    min_seconds_between_ingests: int = 60
+
     # Ollama
     ollama_base_url: str = "http://ollama:11434"
     llm_model: str = "llama3.2:3b"

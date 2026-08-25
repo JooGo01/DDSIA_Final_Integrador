@@ -1,13 +1,14 @@
 """Endpoints administrativos. Requieren un scope distinto al de consulta."""
 
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, status
 
-from app.api.deps import Principal, require_scope
+from app.api.deps import Principal, rate_limit_by_user, require_scope
 from app.core.errors import AppError
 from app.core.logging import get_logger
-from app.core.metrics import indexed_chunks
+from app.core.metrics import indexed_chunks, rate_limit_hits
 from app.rag.ingest import ingest_corpus
 from app.rag.ollama_client import OllamaError
 from app.schemas import IngestRequest, IngestResponse
@@ -19,12 +20,33 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 RequireIngest = Annotated[Principal, Depends(require_scope("admin:ingest"))]
 
 
-@router.post("/ingest", response_model=IngestResponse, summary="Reindexar el corpus")
+@router.post(
+    "/ingest",
+    response_model=IngestResponse,
+    dependencies=[Depends(rate_limit_by_user)],
+    summary="Reindexar el corpus",
+)
 async def ingest(request: Request, payload: IngestRequest, user: RequireIngest) -> IngestResponse:
     """Relee los documentos del corpus y regenera el indice vectorial."""
     settings = request.app.state.settings
     store = request.app.state.store
     client = request.app.state.ollama
+
+    # Espera entre ingestas completas. El lock de abajo cubre el solapamiento; esto
+    # cubre el encadenado, que es el caso que degrada el servicio: cada corrida
+    # re-vectoriza el corpus entero y deja al modelo sin capacidad para responder.
+    espera = settings.min_seconds_between_ingests
+    transcurrido = time.monotonic() - request.app.state.last_ingest_finished
+    if transcurrido < espera:
+        restante = int(espera - transcurrido) + 1
+        rate_limit_hits.labels(dimension="ingest").inc()
+        raise AppError(
+            code="ingest-too-soon",
+            title="Indexacion demasiado seguida",
+            detail=f"La ultima indexacion termino recien. Reintentá en {restante} segundos.",
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": str(restante)},
+        )
 
     # La ingesta del arranque y la que pide un administrador comparten el mismo
     # indice: dos corridas simultaneas se pisarian los chunks. Se rechaza la segunda
@@ -55,6 +77,8 @@ async def ingest(request: Request, payload: IngestRequest, user: RequireIngest) 
             ) from exc
         finally:
             request.app.state.indexing = False
+            # Tambien si fallo: el corpus se vectorizo igual y el costo ya se pago.
+            request.app.state.last_ingest_finished = time.monotonic()
 
     indexed_chunks.set(store.count())
     return IngestResponse(

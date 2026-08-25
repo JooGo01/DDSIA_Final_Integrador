@@ -58,7 +58,11 @@ CONTENT_SECURITY_POLICY = (
 )
 
 # Swagger sirve su propio JS y CSS desde un CDN: con la politica de arriba no cargaria.
-CSP_EXEMPT_PREFIXES = ("/docs", "/openapi.json")
+#
+# La comparacion es por ruta exacta y no por prefijo. Con prefijo, cualquier ruta que
+# empezara con "/docs" —incluida una futura "/docs-internos"— perdia la politica en
+# silencio, y esa es la clase de agujero que no se nota hasta que ya esta.
+CSP_EXEMPT_PATHS = frozenset({"/docs", "/docs/oauth2-redirect", "/openapi.json"})
 
 DESCRIPTION = """
 Asistente de preguntas y respuestas sobre **OWASP Top 10:2025** y
@@ -92,6 +96,10 @@ async def lifespan(app: FastAPI):
     # Serializa las ingestas: la del arranque y las que pida un administrador.
     app.state.ingest_lock = asyncio.Lock()
     app.state.indexing = False
+    # Momento en que termino la ultima ingesta. El lock impide que dos corran a la
+    # vez, pero no que se pidan una atras de otra: encadenarlas satura el modelo y
+    # /ask empieza a devolver 503. Arranca en 0 para no demorar la primera.
+    app.state.last_ingest_finished = 0.0
 
     # El modelo se carga en RAM y el indice se construye en segundo plano. Sin esto
     # la primera consulta real paga la carga completa y puede pasarse del timeout.
@@ -167,6 +175,9 @@ async def _auto_ingest(app: FastAPI) -> None:
             return
         finally:
             app.state.indexing = False
+            # La del arranque cuenta igual que una manual: el modelo ya quedo
+            # ocupado vectorizando y pedir otra enseguida lo satura.
+            app.state.last_ingest_finished = time.monotonic()
 
         indexed_chunks.set(store.count())
         logger.info(
@@ -180,14 +191,20 @@ async def _auto_ingest(app: FastAPI) -> None:
 
 def create_app() -> FastAPI:
     """Construye la aplicacion con sus middlewares, handlers y rutas."""
+    # Swagger solo en desarrollo. Fuera de ahi no aporta y suma superficie: es la
+    # unica ruta exenta de la politica de contenido, y carga su JS de un CDN sin
+    # verificar integridad. Un CDN comprometido correria con permisos del mismo
+    # origen que la interfaz, donde el usuario escribe su contrasena.
+    es_dev = get_settings().environment == "dev"
+
     app = FastAPI(
         title="OWASP RAG Assistant",
         description=DESCRIPTION,
         version=get_settings().app_version,
         lifespan=lifespan,
-        docs_url="/docs",
+        docs_url="/docs" if es_dev else None,
         redoc_url=None,
-        openapi_url="/openapi.json",
+        openapi_url="/openapi.json" if es_dev else None,
     )
 
     @app.middleware("http")
@@ -212,7 +229,7 @@ def create_app() -> FastAPI:
         response.headers["X-Request-ID"] = request_id
         for header, value in SECURITY_HEADERS.items():
             response.headers.setdefault(header, value)
-        if not request.url.path.startswith(CSP_EXEMPT_PREFIXES):
+        if request.url.path not in CSP_EXEMPT_PATHS:
             response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
         return response
 

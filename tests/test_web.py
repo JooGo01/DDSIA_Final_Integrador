@@ -2,6 +2,8 @@
 
 import re
 
+from fastapi.testclient import TestClient
+
 
 def test_la_raiz_sirve_la_interfaz(client):
     response = client.get("/")
@@ -46,6 +48,17 @@ def test_swagger_queda_exento_de_la_csp(client):
     response = client.get("/docs")
     assert response.status_code == 200
     assert "Content-Security-Policy" not in response.headers
+
+
+def test_la_exencion_de_la_csp_es_por_ruta_exacta(client):
+    """Con prefijo, cualquier ruta que empezara con /docs perdia la politica.
+
+    Hoy no existe ninguna, asi que no era explotable. Lo que evita este test es que
+    manana se agregue una y se quede sin politica sin que nadie lo note.
+    """
+    respuesta = client.get("/docs-internos")
+    assert respuesta.status_code == 404
+    assert "Content-Security-Policy" in respuesta.headers
 
 
 def test_la_api_tambien_responde_con_la_politica(client):
@@ -159,3 +172,28 @@ def test_las_cabeceras_de_seguridad_cubren_tambien_la_interfaz(client):
         assert cabeceras["X-Frame-Options"] == "DENY", ruta
         assert cabeceras["Referrer-Policy"] == "no-referrer", ruta
         assert "Content-Security-Policy" in cabeceras, ruta
+
+
+def test_swagger_no_se_publica_fuera_de_desarrollo(client, monkeypatch):
+    """Es la unica ruta exenta de la politica y su JS viene de un CDN sin verificar.
+
+    En un entorno real eso es superficie sin contrapartida: un CDN comprometido
+    correria con permisos del mismo origen que la interfaz, que es donde el usuario
+    escribe su contrasena.
+    """
+    import app.main as main_module
+    from app.config import get_settings
+
+    monkeypatch.setenv("ENVIRONMENT", "prod")
+    get_settings.cache_clear()
+    try:
+        # Sin el gestor de contexto no se ejecuta el lifespan, y no hace falta: las
+        # rutas de Swagger se registran al construir la app. Levantarlo ademas
+        # chocaria con el indice que ya abrio el cliente del fixture.
+        cliente_prod = TestClient(main_module.create_app())
+        assert cliente_prod.get("/docs").status_code == 404
+        assert cliente_prod.get("/openapi.json").status_code == 404
+        # La interfaz sigue disponible: lo que se saca es la consola, no el servicio.
+        assert cliente_prod.get("/").status_code == 200
+    finally:
+        get_settings.cache_clear()
