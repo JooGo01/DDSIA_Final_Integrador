@@ -473,6 +473,56 @@ respondido "OWASP **no** recomienda guardar las contrasenas en texto plano", y e
 comparador buscaba la frase sin tener en cuenta la negacion que la precedia. El
 comparador ahora la contempla.
 
+## El servicio contra los dos listados que indexa
+
+Los hallazgos de arriba salieron de probar el sistema. Esta seccion hace lo inverso:
+recorre las dos taxonomias categoria por categoria y dice que hace el servicio con cada
+una, incluidas las que no aplican y las que quedan abiertas.
+
+Tiene una particularidad util: los dos documentos que sirven de grilla son el corpus que
+este mismo servicio indexa. Los nombres y el orden salen de `data/corpus/`, no de
+memoria — el Top 10 cambio de orden en 2025 y varias categorias no estan donde estaban.
+
+### OWASP Top 10:2025
+
+| # | Categoria | Estado |
+|---|---|---|
+| A01 | Broken Access Control | **Cubierto.** Scope por endpoint verificado en el servidor, nunca en el cliente. No hay endpoints por identificador de objeto, asi que no hay superficie de IDOR. Medido en `evals/pentest.py`. |
+| A02 | Security Misconfiguration | **Cubierto, con un pendiente.** Contenedor sin root, `read_only`, `cap_drop: ALL`, `no-new-privileges`, limites de CPU, memoria y PIDs; cabeceras de seguridad y CSP sin origenes externos; el servicio no arranca sin `JWT_SECRET`. Pendiente: `/docs` queda expuesto tambien fuera de desarrollo, y es la unica ruta exenta de CSP. |
+| A03 | Software Supply Chain Failures | **Cubierto.** Versiones fijas, `pip-audit` sobre dependencias, Trivy y SBOM CycloneDX sobre la imagen, hadolint sobre el Dockerfile. El corpus se descarga de los repositorios oficiales de OWASP. |
+| A04 | Cryptographic Failures | **Parcial y declarado.** bcrypt con coste 12 para las contrasenas, JWT con algoritmo explicito y secreto de 32 caracteres minimo. No hay TLS: el servicio escucha en `127.0.0.1` y se asume un proxy adelante si sale de ahi. HS256 es simetrico, que alcanza para un emisor unico y no para varios. |
+| A05 | Injection | **Sin superficie clasica, con una propia.** No hay SQL, ni `subprocess`, ni `eval`: verificado sobre `app/` completo. La inyeccion que si aplica es la de prompt, directa e indirecta, y tiene su propio hallazgo en este documento. |
+| A06 | Insecure Design | **Es el eje del trabajo.** El modelo de amenazas se escribio antes que los controles, y `architecture.md` §11 declara que se decidio no construir y por que. La decision de no exponer herramientas es de diseno, no una omision. |
+| A07 | Authentication Failures | **Cubierto, con limites declarados.** Mismo mensaje para usuario inexistente y clave incorrecta, con comparacion siempre ejecutada contra un hash falso para no filtrar por tiempo; limite de intentos por IP; JWT con vencimiento y claims obligatorios. Sin MFA y sin revocacion: un token robado sirve hasta que vence. |
+| A08 | Software or Data Integrity Failures | **Cubierto en la ingesta.** El corpus se revisa antes de indexarse y se vectoriza entero antes de reemplazar el indice, para que una falla a mitad de camino no deje el servicio sin nada que responder. Hay SBOM pero no firma de imagen. |
+| A09 | Security Logging and Alerting Failures | **La mitad.** Logs estructurados en JSON con identificador de correlacion, campos sensibles enmascarados, y metricas por etapa, por motivo de bloqueo y por limite alcanzado. Lo que falta es la segunda mitad del nombre de la categoria: no hay alertas, ni umbrales, ni destino de los logs mas alla de `stdout`. |
+| A10 | Mishandling of Exceptional Conditions | **Cubierto.** Errores en `problem+json` con identificador de traza y sin detalle interno; si el modelo no responde, 503 con `Retry-After`; si falla el calculo de fundamentacion, la respuesta se descarta en vez de publicarse sin verificar; si la ingesta de arranque falla, el servicio queda degradado y lo informa en vez de caerse. |
+
+### OWASP API Security Top 10:2023
+
+| # | Categoria | Estado |
+|---|---|---|
+| API1 | Broken Object Level Authorization | **No aplica, por diseno.** Ningun endpoint recibe un identificador de objeto: no hay un recurso por usuario al que se pueda acceder cambiando un numero. |
+| API2 | Broken Authentication | Ver A07. |
+| API3 | Broken Object Property Level Authorization | **Cubierto.** La entrada rechaza campos no declarados y la salida se serializa contra un esquema fijo, asi que no hay asignacion masiva ni propiedades de mas. |
+| API4 | Unrestricted Resource Consumption | **Cubierto.** Cuatro topes: peticiones por minuto, presupuesto diario de tokens por usuario, tope de tokens de salida y timeout del modelo, mas los limites del contenedor. |
+| API5 | Broken Function Level Authorization | **Cubierto.** `ask:read` y `admin:ingest` son scopes distintos, y un analista con token valido recibe 403 en la reingesta. Medido en `evals/pentest.py`. |
+| API6 | Unrestricted Access to Sensitive Business Flows | **Abierto.** El unico flujo costoso es la reingesta. Esta detras de su scope y de un lock que impide concurrencia, pero no tiene limite de uso ni descuenta del presupuesto: repetirla en serie satura el modelo y degrada `/ask`. |
+| API7 | Server Side Request Forgery | **Sin superficie.** El servicio hace una sola llamada saliente, a la URL del modelo que viene de configuracion. Nada de lo que escribe el usuario se convierte en un destino. Ademas, una URL que aparezca en la respuesta y no este en el contexto recuperado se descarta. |
+| API8 | Security Misconfiguration | Ver A02. |
+| API9 | Improper Inventory Management | **Parcial.** Seis rutas, todas documentadas en el README y en el esquema OpenAPI; no hay endpoints huerfanos ni versiones viejas conviviendo. Lo que falta es prefijo de version y politica de deprecacion: hoy un cambio incompatible no tiene donde vivir. |
+| API10 | Unsafe Consumption of APIs | **Cubierto, y es la tesis del trabajo.** La API que este servicio consume es la del modelo, y su respuesta se trata como dato no confiable: seis comprobaciones antes de publicarla. |
+
+### Lo que queda abierto
+
+Cuatro cosas, que son las que un auditor deberia mirar primero:
+
+1. **API6** — la reingesta no tiene limite de uso ni descuenta presupuesto.
+2. **A09** — hay observabilidad pero no alertas: la categoria se llama *logging **and alerting***.
+3. **A02** — `/docs` expuesto fuera de desarrollo, y es la unica ruta sin CSP.
+4. **A04 / API9** — sin TLS propio y sin versionado de API. Las dos son decisiones razonables
+   para el alcance actual y las dos se rompen apenas el servicio salga de `localhost`.
+
 ## Como reproducir
 
 ```bash
