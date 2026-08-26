@@ -23,6 +23,9 @@ dev = [
     "pytest-asyncio==0.25.0",
     "pytest-cov==6.0.0",
     "ruff==0.8.4",
+    # Lo usa el test que verifica el hardening declarado en docker-compose.yml.
+    # Llegaba transitivamente por chromadb; se declara para no depender de eso.
+    "pyyaml==6.0.2",
     "bandit==1.8.0",
     "pip-audit==2.7.3",
 ]
