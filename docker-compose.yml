@@ -1,10 +1,20 @@
 name: owasp-rag-assistant
 
 services:
+  # Es el servicio que corre inferencia sobre texto que viene del usuario, asi que
+  # lleva los mismos controles que la API. Se endurecio despues de una revision que
+  # noto que era el unico contenedor del stack sin ninguno.
   ollama:
     image: ollama/ollama:0.5.7
+    # La imagen oficial corre como root y guarda los modelos en /root/.ollama. Se
+    # mueve el HOME para que un usuario sin privilegios pueda escribir su propio
+    # directorio de modelos: el UID coincide con el de la API para que los permisos
+    # del volumen sean predecibles.
+    user: "10001:10001"
+    environment:
+      HOME: /home/ollama
     volumes:
-      - ollama-models:/root/.ollama
+      - ollama-models:/home/ollama/.ollama
     # No se publica el puerto al host: solo la API habla con el modelo.
     expose:
       - "11434"
@@ -16,6 +26,22 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
+    # --- Hardening de runtime ---
+    # Es el servicio que corre inferencia sobre texto que viene del usuario, y era
+    # el unico contenedor del stack sin ningun control. Lleva los mismos que la API.
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # Con los dos modelos cargados en RAM el consumo medido es de 3,7 GB. El tope
+    # deja margen para la inferencia sin permitir que se lleve el host entero.
+    mem_limit: 6g
+    cpus: 8.0
+    # Mas alto que el de la API porque Ollama levanta un proceso runner por modelo.
+    pids_limit: 512
     restart: unless-stopped
 
   # Descarga los modelos la primera vez y termina.
@@ -24,15 +50,32 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+    user: "10001:10001"
     environment:
       OLLAMA_HOST: http://ollama:11434
-    entrypoint: ["/bin/sh", "-c"]
-    command: >
-      "ollama pull ${LLM_MODEL:-llama3.2:3b} &&
-       ollama pull ${EMBEDDING_MODEL:-nomic-embed-text} &&
-       echo 'modelos listos'"
+      HOME: /tmp
+    # Los nombres de modelo llegan como argumentos posicionales, no interpolados
+    # dentro de la cadena que ejecuta el shell. Con la interpolacion, quien pudiera
+    # editar el .env elegia el comando que corria este contenedor.
+    entrypoint: ["/bin/sh", "-c", 'ollama pull "$1" && ollama pull "$2" && echo "modelos listos"', "--"]
+    command:
+      - "${LLM_MODEL:-llama3.2:3b}"
+      - "${EMBEDDING_MODEL:-nomic-embed-text}"
     networks:
       - backend
+    # --- Hardening de runtime ---
+    # No monta el volumen de modelos: descarga a traves de OLLAMA_HOST, asi que solo
+    # necesita un directorio temporal propio.
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 2.0
+    pids_limit: 128
     restart: "no"
 
   api:
