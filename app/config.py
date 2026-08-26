@@ -8,6 +8,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PLACEHOLDER_SECRETS = {"changeme", "secret", "cambiar", "please-change-me", "test"}
 
+# Techo duro del campo de la pregunta, aplicado por el contrato en app/schemas.py.
+# No es la politica: la politica son min_question_chars y max_question_chars, que se
+# aplican en el guard de entrada y se pueden mover por variable de entorno. Esto es
+# solo el corte barato que evita construir el modelo con un payload absurdo.
+QUESTION_HARD_LIMIT = 4000
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -82,6 +88,21 @@ class Settings(BaseSettings):
         """Un limite en cero dejaria el servicio inutilizable y divide por cero al reponer."""
         if value <= 0:
             raise ValueError("Los limites de uso tienen que ser mayores que cero.")
+        return value
+
+    @field_validator("max_question_chars")
+    @classmethod
+    def must_fit_hard_limit(cls, value: int) -> int:
+        """Un maximo por encima del techo del contrato no se aplicaria nunca.
+
+        El contrato de app/schemas.py corta antes que el guard, asi que una politica
+        mas alta que el techo quedaria recortada en silencio. Falla al arrancar.
+        """
+        if value > QUESTION_HARD_LIMIT:
+            raise ValueError(
+                f"MAX_QUESTION_CHARS no puede pasar de {QUESTION_HARD_LIMIT}, "
+                "que es el techo del contrato de entrada."
+            )
         return value
 
     @field_validator("jwt_secret")

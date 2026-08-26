@@ -41,6 +41,19 @@ class VectorStore:
         )
         logger.info("collection_cleared", collection=self.collection_name)
 
+    def ids(self) -> set[str]:
+        """Ids de todo lo indexado. Sirve para comparar contra una corrida nueva."""
+        # include=[] pide solo los ids: sin esto Chroma trae ademas los documentos y
+        # los vectores, que para el corpus completo son varios megabytes al aire.
+        return set(self._collection.get(include=[])["ids"])
+
+    def delete(self, ids: list[str]) -> None:
+        """Borra los chunks indicados. Sin ids no hace nada."""
+        if not ids:
+            return
+        self._collection.delete(ids=ids)
+        logger.info("chunks_deleted", count=len(ids))
+
     def add(self, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
         """Guarda los chunks con sus vectores. Un id repetido pisa el registro anterior."""
         if not chunks:

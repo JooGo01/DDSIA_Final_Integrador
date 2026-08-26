@@ -1,6 +1,7 @@
 """Ingesta del corpus: lee los markdown, los trocea, los vectoriza y los guarda."""
 
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from app.config import Settings
@@ -21,6 +22,17 @@ CORPUS_SOURCES = {
 }
 
 
+@dataclass(frozen=True)
+class IngestResult:
+    documents: int
+    chunks: int
+    duration_ms: int
+    # Archivos que quedaron fuera por contener instrucciones en lugar de contenido.
+    rejected: list[str]
+    # Chunks que estaban indexados y ya no corresponden a ningun documento vigente.
+    removed: int
+
+
 def collect_documents(corpus_path: str) -> list[tuple[Path, str, str]]:
     """Lista los markdown del corpus como (ruta, nombre_de_documento, source)."""
     root = Path(corpus_path)
@@ -39,17 +51,16 @@ async def ingest_corpus(
     store: VectorStore,
     client: OllamaClient,
     reset: bool = False,
-) -> tuple[int, int, int, list[str]]:
-    """Ingesta el corpus completo.
-
-    Devuelve (documentos, chunks, duracion en ms, archivos descartados).
-    """
+) -> IngestResult:
+    """Ingesta el corpus completo y reconcilia el indice con lo que hay en disco."""
     started = time.perf_counter()
 
     documents = collect_documents(settings.corpus_path)
     if not documents:
+        # No se toca el indice: un corpus que no se pudo leer no es un corpus vacio,
+        # y borrar lo indexado dejaria el servicio sin nada que responder.
         logger.warning("empty_corpus", path=settings.corpus_path)
-        return 0, 0, int((time.perf_counter() - started) * 1000), []
+        return IngestResult(0, 0, int((time.perf_counter() - started) * 1000), [], 0)
 
     all_chunks: list[Chunk] = []
     for path, document_name, source in documents:
@@ -95,12 +106,33 @@ async def ingest_corpus(
             all_chunks[start : start + EMBED_BATCH_SIZE], vectors[start : start + EMBED_BATCH_SIZE]
         )
 
+    # Reconciliacion. add() hace upsert, asi que un documento borrado del corpus
+    # dejaba sus chunks indexados y citables, y uno editado dejaba los sobrantes de
+    # la version anterior. Lo que quedo en el indice y no salio de esta corrida es
+    # huerfano. Con reset no hace falta: clear() ya vacio la coleccion.
+    #
+    # Se saltea si no quedo nada por indexar. Con todos los documentos descartados
+    # por el guard, borrar los huerfanos vaciaria el indice completo, y una falla en
+    # un archivo no puede dejar al servicio sin corpus.
+    removed = 0
+    if not reset and all_chunks:
+        huerfanos = sorted(store.ids() - {chunk.chunk_id for chunk in all_chunks})
+        store.delete(huerfanos)
+        removed = len(huerfanos)
+
     duration_ms = int((time.perf_counter() - started) * 1000)
     logger.info(
         "ingest_completed",
         documents=len(documents),
         chunks=len(all_chunks),
         rejected=descartados,
+        removed=removed,
         duration_ms=duration_ms,
     )
-    return len(documents) - len(descartados), len(all_chunks), duration_ms, descartados
+    return IngestResult(
+        documents=len(documents) - len(descartados),
+        chunks=len(all_chunks),
+        duration_ms=duration_ms,
+        rejected=descartados,
+        removed=removed,
+    )

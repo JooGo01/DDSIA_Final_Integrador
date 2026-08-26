@@ -165,9 +165,7 @@ async def _auto_ingest(app: FastAPI) -> None:
         started = time.perf_counter()
         logger.info("auto_ingest_started", corpus=settings.corpus_path)
         try:
-            documents, chunks, _duration_ms, rejected = await ingest_corpus(
-                settings, store, app.state.ollama, reset=False
-            )
+            resultado = await ingest_corpus(settings, store, app.state.ollama, reset=False)
         except (OllamaError, OSError) as exc:
             # Que la ingesta automatica falle no puede tumbar el servicio: queda
             # degradado, /health lo informa y el endpoint de administracion sigue
@@ -183,9 +181,10 @@ async def _auto_ingest(app: FastAPI) -> None:
         indexed_chunks.set(store.count())
         logger.info(
             "auto_ingest_finished",
-            documents=documents,
-            chunks=chunks,
-            rejected=rejected,
+            documents=resultado.documents,
+            chunks=resultado.chunks,
+            rejected=resultado.rejected,
+            removed=resultado.removed,
             seconds=round(time.perf_counter() - started, 1),
         )
 

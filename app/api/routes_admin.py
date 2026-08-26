@@ -65,9 +65,7 @@ async def ingest(request: Request, payload: IngestRequest, user: RequireIngest) 
     async with request.app.state.ingest_lock:
         request.app.state.indexing = True
         try:
-            documents, chunks, duration_ms, rejected = await ingest_corpus(
-                settings, store, client, reset=payload.reset
-            )
+            resultado = await ingest_corpus(settings, store, client, reset=payload.reset)
         except OllamaError as exc:
             raise AppError(
                 code="llm-unavailable",
@@ -82,9 +80,10 @@ async def ingest(request: Request, payload: IngestRequest, user: RequireIngest) 
 
     indexed_chunks.set(store.count())
     return IngestResponse(
-        documents=documents,
-        chunks=chunks,
+        documents=resultado.documents,
+        chunks=resultado.chunks,
         collection=settings.collection_name,
-        duration_ms=duration_ms,
-        rejected=rejected,
+        duration_ms=resultado.duration_ms,
+        rejected=resultado.rejected,
+        removed=resultado.removed,
     )

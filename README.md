@@ -316,7 +316,11 @@ superficie: es la unica ruta exenta de la politica de contenido y carga su JavaS
 de un CDN sin verificar integridad.
 
 El parametro `source` de `/ask` acepta `web` (Top 10:2025), `api` (API Security Top 10:2023)
-o `all`. `/admin/ingest` devuelve `409` si ya hay una ingesta en curso: las dos escriben
+o `all`.
+
+`/admin/ingest` reconcilia: devuelve `removed` con la cantidad de fragmentos que estaban
+indexados y ya no corresponden a ningun documento del corpus. Antes un documento borrado
+seguia indexado y citable hasta que alguien reindexara con `reset: true`. `/admin/ingest` devuelve `409` si ya hay una ingesta en curso: las dos escriben
 sobre el mismo indice y no pueden solaparse.
 
 ## Como funciona una consulta
@@ -559,6 +563,8 @@ Todo se configura por variables de entorno; `.env.example` tiene la lista comple
 | `LLM_TIMEOUT_SECONDS` | `150` | Corte de la consulta al modelo. Bajo carga sostenida 90 s no alcanzaba |
 | `RETRIEVAL_TOP_K` | `4` | Fragmentos que se recuperan por consulta |
 | `MIN_RELEVANCE_SCORE` | `0.25` | Umbral por debajo del cual un fragmento se descarta |
+| `MIN_QUESTION_CHARS` | `8` | Largo minimo de la pregunta |
+| `MAX_QUESTION_CHARS` | `600` | Largo maximo de la pregunta. El contrato de entrada tiene ademas un techo duro de 4000 que esta variable no puede superar |
 
 ## Problemas comunes
 
