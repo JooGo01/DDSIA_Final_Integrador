@@ -397,6 +397,7 @@ evaluacion de cuanto inventa el asistente, en
 | Filtro de prompt injection y de datos personales en la pregunta | `app/guardrails/input_guard.py` |
 | Control de alcance: rechaza preguntas sobre documentos no indexados | `app/guardrails/scope_guard.py` |
 | Revision de documentos en la ingesta: descarta los que dan ordenes | `app/guardrails/corpus_guard.py` |
+| Descarte de las bibliografias en la ingesta: no responden y desplazan al contenido | `app/rag/chunking.py` |
 | Verificacion de URLs: toda URL de una respuesta debe estar en el contexto | `app/guardrails/output_guard.py` |
 | Validacion de la respuesta: fundamentacion, fuga de prompt y datos personales | `app/guardrails/output_guard.py` |
 | Rechazo de preguntas ilegibles y de pedidos de codigo o scripts | `app/guardrails/input_guard.py`, `app/guardrails/scope_guard.py` |

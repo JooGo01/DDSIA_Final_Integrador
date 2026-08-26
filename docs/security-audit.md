@@ -349,6 +349,81 @@ Se descarto la deteccion por racha de consonantes, que cubriria mas casos, porqu
 produce falsos positivos sobre terminos reales del dominio: "XMLHttpRequest" tiene siete
 consonantes seguidas.
 
+## Sexto hallazgo: la bibliografia le ganaba al contenido
+
+Salio de probar la interfaz a mano, no de una bateria. La pregunta era "que recomienda
+OWASP para mitigar el consumo ilimitado de recursos en una API" y la respuesta fue que
+**OWASP no da recomendaciones especificas**, teniendo API4:2023 indexado, que es
+exactamente esa categoria.
+
+### Que se encontro
+
+Las cuatro citas de esa respuesta tenian seccion "OWASP". Los diez documentos de API
+cierran con `## References` y adentro cuelgan `### OWASP` y `### External`, que son
+listas de enlaces a Cheat Sheets. El chunker corta por encabezado, asi que esas
+bibliografias quedaban indexadas como fragmentos consultables.
+
+Lo que las hacia ganar es su forma. Son listas cortas de titulos de seguridad: densas
+en vocabulario del dominio y sin prosa que diluya el vector. Medido sobre el indice:
+
+| Tipo de fragmento | Relevancia |
+|---|---|
+| Bibliografias (`OWASP`, `External`) | 0.644 a 0.670 |
+| Contenido real de API4:2023 | 0.539 a 0.545 |
+
+Le sacaban una decima al contenido real, y con `retrieval_top_k=4` se llevaban las
+cuatro posiciones. El umbral de relevancia no las separa porque puntuan mas alto, y el
+de fundamentacion tampoco: la respuesta queda sostenida por el contexto recuperado, que
+existe y es real. Es el mismo patron que el cuarto hallazgo, con otra causa.
+
+### Que se hizo
+
+**El chunker arrastra la ruta de encabezados.** Antes cada seccion conocia solo su
+titulo. Ahora mantiene una pila por nivel, asi que sabe que una seccion "OWASP" es en
+realidad "API4:2023 > References > OWASP". Eso permite dos cosas.
+
+La primera es descartar la bibliografia **por el padre y no por el nombre**. Filtrar
+por titulo hubiera sido tres lineas, pero "OWASP" y "External" son titulos validos por
+si solos: una seccion legitima que se llamara asi habria quedado afuera. Se descarta lo
+que cuelga de `References`, y una seccion "OWASP" fuera de una bibliografia se conserva.
+
+La segunda salio de medir despues del primer arreglo, y era el problema mas grande. Con
+las bibliografias afuera, la respuesta seguia mal: citaba "How To Prevent" sin decir de
+que categoria y mezclaba API9 con API4. Ese titulo aparece en los diez documentos de
+API, y "How to prevent." en los diez web. Como el fragmento se indexaba anteponiendo
+solo el titulo hoja, ni el embedding ni el modelo podian distinguir de que categoria era
+ese consejo. Ahora se antepone la ruta completa, que va tambien en la cita.
+
+**Una variante se escapo del primer intento.** Los dos corpus no escriben igual los
+encabezados: el de APIs pone `## References` y el web `## References.` con punto. La
+comparacion exacta dejaba pasar nueve de las veinte bibliografias, y los tests no lo
+vieron porque el documento de prueba usaba la forma sin punto. Aparecio recien al
+reindexar el corpus real y mirar las citas. El titulo ahora se normaliza antes de
+comparar, y hay un test con la forma con punto.
+
+### Resultado
+
+El indice paso de 222 a 188 fragmentos: 34 menos, el 15%, que no podian responder nada
+y desplazaban al contenido que si. La misma pregunta que abrio el hallazgo ahora cita
+`API4:2023 Unrestricted Resource Consumption > How To Prevent` y responde con las
+recomendaciones reales del documento.
+
+Las citas ademas dicen de donde salen. Antes devolvian "How To Prevent", que se repite
+veinte veces en el corpus; ahora devuelven la ruta completa.
+
+### Lo que sigue abierto
+
+La recuperacion sigue trayendo una mezcla de categorias: para esa pregunta trajo
+fragmentos de API9, API2, API4 y API8, los cuatro de su seccion de prevencion. Con la
+ruta en el texto el modelo los distingue y elige bien, pero el orden lo sigue decidiendo
+la similitud, y el fragmento correcto no siempre sale primero. Lo que corresponde ahi es
+un reordenamiento posterior, que es otra pasada de inferencia y queda fuera de alcance.
+
+**La lista de CWEs mapeados se conserva a proposito.** Es contenido del documento y una
+pregunta sobre que CWE corresponde a una categoria se responde con eso, aunque sea la
+que hace fallar el caso de "las tres principales vulnerabilidades". Esa falla es del
+corpus sin documento indice, no de la bibliografia.
+
 ## Hallazgos de la revision de codigo
 
 Revision con tres perspectivas: que rompe en produccion, que confunde a quien llegue
