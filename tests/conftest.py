@@ -97,7 +97,7 @@ def _build_client(tmp_path, monkeypatch, fake_ollama, auto_ingest: bool):
                     "password_hash": bcrypt.hashpw(
                         ADMIN_PASSWORD.encode(), bcrypt.gensalt()
                     ).decode(),
-                    "scopes": ["ask:read", "admin:ingest"],
+                    "scopes": ["ask:read", "admin:ingest", "metrics:read"],
                 },
             }
         ),
@@ -111,6 +111,10 @@ def _build_client(tmp_path, monkeypatch, fake_ollama, auto_ingest: bool):
     monkeypatch.setenv("LOG_LEVEL", "WARNING")
     monkeypatch.setenv("REQUESTS_PER_MINUTE", "10")
     monkeypatch.setenv("LOGIN_ATTEMPTS_PER_MINUTE", "5")
+    # Alto a proposito: el limite por IP aplica a todo el trafico y la suite hace
+    # muchas peticiones desde la misma. Los tests que lo ejercitan reemplazan el
+    # limitador por uno chico en vez de depender de este valor.
+    monkeypatch.setenv("IP_REQUESTS_PER_MINUTE", "10000")
     monkeypatch.setenv("AUTO_INGEST", "true" if auto_ingest else "false")
 
     from app.config import get_settings

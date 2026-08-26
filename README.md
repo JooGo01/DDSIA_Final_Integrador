@@ -203,7 +203,7 @@ clonar y probar sin pasos previos.
 | Usuario | Contrasena | Scopes | Que puede hacer |
 |---|---|---|---|
 | `analista` | `Analista.2026` | `ask:read` | Preguntar |
-| `admin` | `Admin.2026` | `ask:read`, `admin:ingest` | Preguntar y reindexar el corpus |
+| `admin` | `Admin.2026` | `ask:read`, `admin:ingest`, `metrics:read` | Preguntar, reindexar el corpus y leer las metricas |
 
 > **Son publicas: estan en un repositorio abierto.** Sirven para evaluar el trabajo, no
 > para un entorno real. Para reemplazarlas por otras con contrasenas aleatorias:
@@ -309,7 +309,7 @@ en `/auth/token` y pegalo en **Authorize**.
 | POST | `/ask` | `ask:read` | Responde una pregunta sobre el corpus |
 | POST | `/admin/ingest` | `admin:ingest` | Relee los documentos y regenera el indice |
 | GET | `/health` | publico | Estado del modelo, fragmentos indexados y si esta indexando |
-| GET | `/metrics` | publico | Metricas en formato Prometheus |
+| GET | `/metrics` | `metrics:read` | Metricas en formato Prometheus |
 
 Swagger (`/docs`) se publica solo con `ENVIRONMENT=dev`. Fuera de ahi no aporta y suma
 superficie: es la unica ruta exenta de la politica de contenido y carga su JavaScript
@@ -398,12 +398,14 @@ evaluacion de cuanto inventa el asistente, en
 | Rechazo de preguntas ilegibles y de pedidos de codigo o scripts | `app/guardrails/input_guard.py`, `app/guardrails/scope_guard.py` |
 | Descarte de respuestas con codigo que no estaba en el contexto recuperado | `app/guardrails/output_guard.py` |
 | Limite de peticiones por usuario y de intentos de login por IP | `app/core/ratelimit.py` |
+| Techo por IP para todo el trafico, aplicado antes de autenticar | `app/main.py` |
+| Metricas detras de un scope propio, para no publicar los contadores de auth | `app/api/routes_health.py` |
 | Presupuesto diario de tokens por usuario | `app/core/ratelimit.py` |
 | Errores en `problem+json`, sin filtrar detalle interno | `app/core/errors.py` |
 | Logs en JSON con `request_id` y redaccion de campos sensibles | `app/core/logging.py` |
 | Politica de contenido sin origenes externos, y la respuesta del modelo tratada como texto | `app/main.py`, `app/web/assets/app.js` |
 | Token solo en memoria del navegador: ni `localStorage` ni cookies | `app/web/assets/app.js` |
-| Contenedor sin root, filesystem de solo lectura, sin capabilities y con limites | `Dockerfile`, `docker-compose.yml` |
+| Los tres contenedores sin root, filesystem de solo lectura, sin capabilities y con limites | `Dockerfile`, `docker-compose.yml` |
 
 Ninguno de estos controles esta solo documentado: cada uno tiene su prueba en `tests/`.
 
@@ -549,6 +551,7 @@ Todo se configura por variables de entorno; `.env.example` tiene la lista comple
 | `AUTO_INGEST` | `true` | Indexa el corpus al arrancar si el indice esta vacio |
 | `REQUESTS_PER_MINUTE` | `10` | Limite de consultas por usuario |
 | `LOGIN_ATTEMPTS_PER_MINUTE` | `5` | Limite de intentos de login por IP |
+| `IP_REQUESTS_PER_MINUTE` | `60` | Techo por IP para todo el trafico, incluido el no autenticado |
 | `DAILY_TOKEN_BUDGET` | `50000` | Cuota diaria de tokens por usuario |
 | `MIN_SECONDS_BETWEEN_INGESTS` | `60` | Espera minima entre dos reindexados completos |
 | `LLM_MODEL` | `llama3.2:3b` | Modelo de generacion |

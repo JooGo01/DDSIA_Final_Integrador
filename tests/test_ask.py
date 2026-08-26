@@ -1,7 +1,7 @@
 """Tests del endpoint /ask y del pipeline de recuperacion."""
 
 from app.rag.ollama_client import OllamaError
-from tests.conftest import auth_header
+from tests.conftest import ADMIN_PASSWORD, auth_header
 
 
 def test_responde_con_citas(indexed_client):
@@ -93,7 +93,9 @@ def test_health_reporta_indice_y_modelo(indexed_client):
 
 
 def test_metrics_expone_formato_prometheus(indexed_client):
-    response = indexed_client.get("/metrics")
+    response = indexed_client.get(
+        "/metrics", headers=auth_header(indexed_client, "admin", ADMIN_PASSWORD)
+    )
     assert response.status_code == 200
     assert "http_requests_total" in response.text
     assert "rag_answers_total" in response.text

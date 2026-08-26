@@ -9,7 +9,8 @@
     "password_hash": "$2b$12$d.a49xsDBk.IOyDBlCQ2AOO9Cs8OwQcP8GZ1dBypG4jsSALlkys7a",
     "scopes": [
       "ask:read",
-      "admin:ingest"
+      "admin:ingest",
+      "metrics:read"
     ]
   }
 }

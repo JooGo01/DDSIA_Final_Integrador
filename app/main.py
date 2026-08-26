@@ -7,15 +7,16 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import routes_admin, routes_ask, routes_auth, routes_health
+from app.api.deps import client_ip
 from app.config import get_settings
-from app.core.errors import register_error_handlers
+from app.core.errors import build_problem_response, register_error_handlers
 from app.core.logging import configure_logging, get_logger, set_request_id
-from app.core.metrics import http_duration, http_requests, indexed_chunks
+from app.core.metrics import http_duration, http_requests, indexed_chunks, rate_limit_hits
 from app.core.ratelimit import TokenBucketLimiter, TokenBudget
 from app.core.security import load_users
 from app.rag.ingest import ingest_corpus
@@ -207,6 +208,16 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if es_dev else None,
     )
 
+    # Se crea aca y no en el lifespan a proposito. El middleware corre en toda
+    # peticion, incluso cuando alguien construye la app sin ejecutar el lifespan, y
+    # ahi un limitador ausente seria un 500 en cada ruta. No abre nada ni hace E/S:
+    # es un contador en memoria, asi que no necesita el ciclo de vida. Los otros
+    # limites viven en dependencias de ruta y por eso pueden quedar en el lifespan.
+    app.state.ip_limiter = TokenBucketLimiter(
+        capacity=get_settings().ip_requests_per_minute,
+        refill_per_minute=get_settings().ip_requests_per_minute,
+    )
+
     @app.middleware("http")
     async def request_context(request: Request, call_next):
         """Asigna un request_id, mide la request y agrega las cabeceras de seguridad."""
@@ -215,7 +226,24 @@ def create_app() -> FastAPI:
         set_request_id(request_id)
         started = time.perf_counter()
 
-        response = await call_next(request)
+        # El limite por IP se evalua aca, antes de resolver la ruta y por lo tanto
+        # antes de autenticar. Los otros limites son dependencias de ruta que reciben
+        # el usuario ya validado, asi que solo cuentan trafico con token: una peticion
+        # sin credencial devolvia 401 sin consumir cupo y sin techo de ningun tipo.
+        allowed, retry_after = app.state.ip_limiter.check(client_ip(request))
+        if not allowed:
+            rate_limit_hits.labels(dimension="ip").inc()
+            logger.info("ip_rate_limited", route=request.url.path)
+            response = build_problem_response(
+                status.HTTP_429_TOO_MANY_REQUESTS,
+                "rate-limited",
+                "Demasiadas solicitudes",
+                f"Superaste el limite de peticiones. Reintentá en {retry_after} segundos.",
+                request.url.path,
+                {"Retry-After": str(retry_after)},
+            )
+        else:
+            response = await call_next(request)
 
         elapsed = time.perf_counter() - started
         # Se usa el patron de la ruta y no la URL concreta, para no inflar las etiquetas.

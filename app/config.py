@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     login_attempts_per_minute: int = 5
     daily_token_budget: int = 50_000
 
+    # Techo por IP para todo el trafico, autenticado o no. Los demas limites viven en
+    # dependencias de ruta y por lo tanto solo cuentan peticiones que ya presentaron
+    # un token valido: sin este, inundar /ask sin credencial no tenia ningun costo.
+    # El margen es amplio a proposito, porque una carga de la interfaz son varias
+    # peticiones (pagina, hoja de estilos, dos scripts, icono y sondeo de estado).
+    ip_requests_per_minute: int = 60
+
     # Espera minima entre dos ingestas completas. El lock impide que se solapen,
     # pero no que se encadenen: cada corrida re-vectoriza el corpus entero contra
     # el modelo, y repetirla en serie deja a /ask sin capacidad.
