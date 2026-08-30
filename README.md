@@ -573,6 +573,8 @@ Todo se configura por variables de entorno; `.env.example` tiene la lista comple
 |---|---|---|
 | La interfaz dice **degradado** e **indice vacio** | La ingesta automatica todavia no termino, o fallo | Esperar; si sigue, revisar `docker compose logs api` buscando `auto_ingest_failed` |
 | La interfaz dice **el modelo no responde** | Ollama todavia esta cargando el modelo en RAM | Esperar la linea `warmup_finished` en los logs |
+| Ollama en bucle con `permission denied` sobre `id_ed25519` | Un volumen `ollama-models` creado por una version anterior quedo con dueno root | Borrarlo y volver a levantar: `docker compose down -v && docker compose up -d --build`. Se pierden los modelos descargados y se bajan de nuevo |
+| `range of CPUs is from ...` al levantar | Version anterior del compose pedia mas CPUs que las de la maquina | Ya corregido: actualizar el repo (`git pull`) y volver a levantar |
 | `Invoke-WebRequest: parametro -X no encontrado` | En PowerShell 5.1 `curl` es un alias | Usar `Invoke-RestMethod`, o `curl.exe` |
 | El montaje del volumen falla en Git Bash | Conversion automatica de rutas | Prefijar el comando con `MSYS_NO_PATHCONV=1` |
 | `JWT_SECRET` invalido al arrancar | Falta el `.env` o quedo vacio | Correr el paso 2 de la puesta en marcha |

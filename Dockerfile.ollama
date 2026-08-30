@@ -1,0 +1,15 @@
+# Ollama con el directorio de modelos preparado para un usuario sin privilegios.
+#
+# La imagen oficial corre como root y guarda todo en /root/.ollama. Este proyecto
+# mueve el HOME a /home/ollama y corre el contenedor como UID 10001, igual que la API.
+#
+# El problema que resuelve: /home/ollama no existe en la imagen oficial. Al montar un
+# named volume vacio ahi, Docker lo crea propiedad de root, y el proceso como 10001 no
+# puede escribir ni su clave ni los modelos —falla con "permission denied" en bucle—.
+# En Docker Desktop para Windows a veces no se nota porque el volumen queda escribible
+# de corridas anteriores; en un clon limpio sobre Linux o Mac falla siempre.
+#
+# Al crear el directorio en la imagen con el owner correcto, Docker propaga ese owner
+# al volumen la primera vez que lo monta, y el arranque en limpio funciona.
+FROM ollama/ollama:0.5.7
+RUN mkdir -p /home/ollama/.ollama && chown -R 10001:10001 /home/ollama
