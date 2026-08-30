@@ -5,9 +5,15 @@ services:
   # lleva los mismos controles que la API. Se endurecio despues de una revision que
   # noto que era el unico contenedor del stack sin ninguno.
   ollama:
-    image: ollama/ollama:0.5.7
-    # La imagen oficial corre como root y guarda los modelos en /root/.ollama. Se
-    # mueve el HOME para que un usuario sin privilegios pueda escribir su propio
+    # Imagen propia sobre la oficial: solo crea /home/ollama/.ollama con el owner
+    # correcto. Sin eso, el named volume vacio nace propiedad de root y el proceso
+    # como 10001 no puede escribir su clave —permission denied en bucle— en un clon
+    # limpio sobre Linux o Mac. El detalle esta en Dockerfile.ollama.
+    build:
+      context: .
+      dockerfile: Dockerfile.ollama
+    image: owasp-rag-ollama:0.5.7
+    # El HOME se mueve para que un usuario sin privilegios pueda escribir su propio
     # directorio de modelos: el UID coincide con el de la API para que los permisos
     # del volumen sean predecibles.
     user: "10001:10001"
@@ -39,7 +45,12 @@ services:
     # Con los dos modelos cargados en RAM el consumo medido es de 3,7 GB. El tope
     # deja margen para la inferencia sin permitir que se lleve el host entero.
     mem_limit: 6g
-    cpus: 8.0
+    # El tope de CPU estaba en 8.0, y Docker rechaza el arranque cuando el limite
+    # supera la cantidad de nucleos de la maquina: un equipo con menos de 8 cores no
+    # podia levantar el contenedor. Se baja a 2.0, que cabe en cualquier maquina y
+    # sigue acotando el uso. La inferencia es mas lenta con menos nucleos, pero
+    # funciona; para exprimir un host grande se puede subir.
+    cpus: 2.0
     # Mas alto que el de la API porque Ollama levanta un proceso runner por modelo.
     pids_limit: 512
     restart: unless-stopped
