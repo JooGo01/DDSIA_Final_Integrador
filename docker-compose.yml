@@ -45,11 +45,12 @@ services:
     # Con los dos modelos cargados en RAM el consumo medido es de 3,7 GB. El tope
     # deja margen para la inferencia sin permitir que se lleve el host entero.
     mem_limit: 6g
-    # No se limita la CPU del motor de inferencia. Un tope fijo mayor que la cantidad
-    # de nucleos de la maquina hace que Docker rechace el arranque —lo que rompia el
-    # clon en equipos con pocos cores—, y como es el servicio que corre inferencia,
-    # que use los nucleos disponibles es lo esperado. La memoria y los PIDs, que si
-    # acotan el impacto sin depender del hardware, se mantienen.
+    # El tope de CPU estaba en 8.0, y Docker rechaza el arranque cuando el limite
+    # supera la cantidad de nucleos de la maquina: un equipo con menos de 8 cores no
+    # podia levantar el contenedor. Se baja a 2.0, que cabe en cualquier maquina y
+    # sigue acotando el uso. La inferencia es mas lenta con menos nucleos, pero
+    # funciona; para exprimir un host grande se puede subir.
+    cpus: 2.0
     # Mas alto que el de la API porque Ollama levanta un proceso runner por modelo.
     pids_limit: 512
     restart: unless-stopped
